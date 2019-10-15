@@ -5,7 +5,7 @@
 ## first we need to create an extent for a raster to which the NLCD layer will be cropped to when downloaded (because we can't just import the entire NLCD layer for the entire US)
 
 getwd()
-setwd("/Users/Shannon/Desktop/R_Forever/RRF")
+#setwd("/Users/Shannon/Desktop/R_Forever/Dissertation")
 
 install.packages('FedData')
 library(FedData)
@@ -23,6 +23,7 @@ plot(Suisun_NLCD)
 #View(Suisun_NLCD)
 print(Suisun_NLCD)
 
+## DON'T DO BELOW CODE INITIALLY - SKIP TO JUST TESTING MAMA DATA BELOW
 ## import GPS locations and convert lat/long to utm and create a spatial points file
 
 library(sp)
@@ -62,7 +63,7 @@ suisun_polygon
 
 plot(suisun_nlcd_crop)
 
-## ok let's try dBBMM with the breeding 2018 females
+## ok let's try dBBMM with the Mama from 2018 
 
 install.packages("move")
 library(move)
@@ -75,20 +76,21 @@ library(move)
 #plot(mama, pch = 19)
 
 #bring in file from Movebank
-mama_move <- move(x = "~/Desktop/R_Forever/RRF/Data/SIMP 02.csv")
+mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
 show(mama_move)
 n.locs(mama_move) # number of locations
 head(timeLag(mama_move, units="mins")) # time difference between locations
 head(timestamps(mama_move))
 
-# burst the movestack object to exclude any loactions that are greater than 60 minutes apart
-mama_bursted <- move::burst(mama_move, c('normal','long')[1+(timeLag(mama_move, units='mins')>70)])
+# burst the movestack object to exclude any loactions that are greater than 72 minutes apart (because a couple locations are 72 and not 60 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+
+mama_bursted <- move::burst(mama_move, c('normal','long')[1+(timeLag(mama_move, units='mins')>72)])
 
 #plot mama's locations
-par(mfcol=1:2)
+#par(mfcol=1:2)
 plot(mama_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
 
-#plot mama's locations with ggmap over map layer
+#plot mama's locations with ggmap over map layer just to see if it is geographically correct! - it is
 require(ggmap) #these packages are necessary to work with google maps
 require(mapproj)
 mama_df <- as(mama_bursted, "data.frame")
@@ -96,7 +98,7 @@ m <- get_map(bbox(extent(mama_bursted)*1.1), source="stamen", zoom=12)
 ggmap(m)+geom_path(data=mama_df, aes(x=location.long, y=location.lat))
 
 
-# transform coordinates from lat lon
+# transform coordinates from lat lon, center = T is required for the dbbmm to operate properly according to Bart on the movebank help chat
 
 #mama_trans <- spTransform(mama_move, center=T)
 mama_trans2 <- spTransform(x = mama_bursted, CRSobj = "+proj=aeqd + ellps=WGS84", center = T)
@@ -115,13 +117,17 @@ new_crs <- "+proj=aeqd +ellps=WGS84 +lon_0=-121.910674 +lat_0=38.115666"
 Suisun_NLCD_trans <- projectRaster(from = r, crs = new_crs )
 proj4string(Suisun_NLCD_trans)
 
-#run the dbbmm function
-mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Suisun_NLCD_trans, location.error = 10, ext = .3, time.step = 60, margin = 3)
+#run the dbbmm function - NOTE only odd numbers for margin and window size will produce valid likelihood estimations for motion variance
+
+# From Kranstauber et al: increasing the size of the window increases reliability of the motion variance estimation at the cost of missing short term changes in the variation parameter, and should be close to, but less than, 24. Increasing the size of the margin, in contrast, enhances the power to identify "weak" breakpoints at the cost of not detecting breakpoints within the margin. 
+
+mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Suisun_NLCD_trans, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 60 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
 
 #try without the raster - doesn't work, don't worry about it because you have a raster set
 #mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', dimSize = 30, location.error = 10, ext = .3, time.step = 60, margin = 13)
 
-mama_dbbmm<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
+## below are the UDs calculated from the dbbmm
+mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
 
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
@@ -136,23 +142,24 @@ lines(spTransform(mama_bursted, center=TRUE), col=3, lwd=2)
 plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
 contour(mama_dbbmm, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
 
-#get the area of the 95% UD
+#get the area of the 95% UD - i think these areas are in meters
 mama_cont95 <- getVolumeUD(mama_dbbmm)
 mama_cont95 <- mama_cont95<=.95
 area95 <- sum(values(mama_cont95))
 area95
 
-#get the area of the 50% UD
+#get the area of the 50% UD - i think these areas are in meters
 mama_cont5 <- getVolumeUD(mama_dbbmm)
 mama_cont5 <- mama_cont5<=.5
 area5 <- sum(values(mama_cont5))
 area5
 
 ## save the objects above
-save(x=mama_dbbmm, file="~/Desktop/R_Forever/RRF/Output/mama.RData")
+save(x=mama_dbbmm, file="~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama.RData")
 rm(mama_dbbmm)
 load(file="~/Desktop/R_Forever/RRF/Output/mama.RData")
 
+# saves the contours to a kml file
 install.packages('plotKML')
 require(plotKML)
 kml(mama_move)
