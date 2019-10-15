@@ -129,6 +129,10 @@ mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Su
 ## below are the UDs calculated from the dbbmm
 mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
 
+## get the UD raster layer??
+mama_ud <- UDStack(mama_dbbmm)
+head(mama_ud)
+
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
 par(mfrow=c(1,2))
@@ -188,8 +192,12 @@ writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
 
 ## try with mama data - it works
 require(move)
-cont<-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
-writeOGR(cont, dsn = '.', layer = 'mama_contour', driver = "ESRI Shapefile")
+cont<-raster2contour(mama_dbbmm, level=c(.5,.95))
+writeOGR(cont, dsn = '.', layer = 'mama_contour2', driver = "ESRI Shapefile")
+
+require(move)
+cont2 <-raster2contour(mama_ud, level=c(.5,.95))
+writeOGR(cont2, dsn = '.', layer = 'mama_contour', driver = "ESRI Shapefile")
 
 install.packages("GISTools")
 library(GISTools)
@@ -219,8 +227,12 @@ writeOGR(cont, dsn = '.', layer = 'mama_contour_kml', driver = "KML")
 
 install.packages("remotes")
 remotes::install_github("bacollier/moveud")
+library(moveud)
 
+## another way to save the UDs
 
-mama_bursted
-mama_dbbmm
-mama_dbbmm_UD
+rangeud <- 1104
+ts <- 72
+
+mama_ud <- move.forud(mama_dbbmm, range.subset = 10:12, ts = .2, ras = Suisun_NLCD_trans, le = 10, lev = c(50, 95), crs = "+proj=aeqd + ellps=WGS84", path = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output", name = "mama_ud")
+
