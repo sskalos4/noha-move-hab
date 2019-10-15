@@ -92,7 +92,7 @@ plot(mama_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="lo
 
 #plot mama's locations with ggmap over map layer just to see if it is geographically correct! - it is
 require(ggmap) #these packages are necessary to work with google maps
-require(mapproj)
+#require(mapproj)
 mama_df <- as(mama_bursted, "data.frame")
 m <- get_map(bbox(extent(mama_bursted)*1.1), source="stamen", zoom=12)
 ggmap(m)+geom_path(data=mama_df, aes(x=location.long, y=location.lat))
@@ -132,41 +132,43 @@ mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
 par(mfrow=c(1,2))
-plot(mama_dbbmm, xlab="longitude", ylab="latitude")
-plot(mama_dbbmm, xlab="longitude", ylab="latitude")
+plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
+plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
 lines(spTransform(mama_bursted, center=TRUE), col=3, lwd=2)
 #plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
 #points(spTransform(mama_bursted, center=TRUE), col=8)
 
 # this plots the 50% and 95% UD contour lines around the UDs
-plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
-contour(mama_dbbmm, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+plot(mama_dbbmm_UD, xlab="location_long", ylab="location_lat")
+contour(mama_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
 
 #get the area of the 95% UD - i think these areas are in meters
-mama_cont95 <- getVolumeUD(mama_dbbmm)
+mama_cont95 <- getVolumeUD(mama_dbbmm_UD)
 mama_cont95 <- mama_cont95<=.95
 area95 <- sum(values(mama_cont95))
 area95
 
 #get the area of the 50% UD - i think these areas are in meters
-mama_cont5 <- getVolumeUD(mama_dbbmm)
+mama_cont5 <- getVolumeUD(mama_dbbmm_UD)
 mama_cont5 <- mama_cont5<=.5
 area5 <- sum(values(mama_cont5))
 area5
 
 ## save the objects above
-save(x=mama_dbbmm, file="~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama.RData")
-rm(mama_dbbmm)
-load(file="~/Desktop/R_Forever/RRF/Output/mama.RData")
+#save(x=mama_dbbmm, file="~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama.RData")
+#rm(mama_dbbmm)
+#load(file="~/Desktop/R_Forever/Dissertaion/noha-move-hab/Output/mama.RData")
+
+#save(x=mama_dbbmm_UD, file="~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama.RData")
+#rm(mama_dbbmm_UD)
 
 # saves the contours to a kml file
 install.packages('plotKML')
 require(plotKML)
 kml(mama_move)
 
-## extract the motion variance values from the dbbmm - doesn't work?
-data(mama_dbbmm)
-getMotionVariance(mama_dbbmm) ## with a DBBMM object
+## extract the motion variance values from the dbbmm - this defines how diffusive or how irregular the path of an animal is
+mama_var <- getMotionVariance(mama_dbbmm) ## with a DBBMM object
 
 # convert a move object to adehabitat compatible object
 mama_ade <- move2ade(mama_move)
@@ -186,12 +188,12 @@ writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
 
 ## try with mama data - it works
 require(move)
-cont<-raster2contour(mama_dbbmm, level=c(.5,.95))
+cont<-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont, dsn = '.', layer = 'mama_contour', driver = "ESRI Shapefile")
 
-# try to save contour as a kml file
+# try to save contour as a kml file - does not work
 require(move)
-cont<-raster2contour(mama_dbbmm, level=c(.5,.95))
+cont<-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont, dsn = '.', layer = 'mama_contour_kml', driver = "KML")
 
 ## troubleshooting the lower y grid not large enough error from above
@@ -208,6 +210,7 @@ writeOGR(cont, dsn = '.', layer = 'mama_contour_kml', driver = "KML")
 #plot(porc_dbbmm)
 
 ## now let's us moveud to extract uds around each movement step
+## Note don't need this now that I was able to calculate motion variance for each step - not true?
 
 install.packages("remotes")
 remotes::install_github("bacollier/moveud")
