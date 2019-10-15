@@ -191,6 +191,11 @@ require(move)
 cont<-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont, dsn = '.', layer = 'mama_contour', driver = "ESRI Shapefile")
 
+install.packages("GISTools")
+library(GISTools)
+library(rgdal)
+mama_points_new <- writeOGR(mama_bursted, dsn = "tempdir", layer = "mama_points_new", driver = "ESRI Shapefile")
+
 # try to save contour as a kml file - does not work
 require(move)
 cont<-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
@@ -215,3 +220,7 @@ writeOGR(cont, dsn = '.', layer = 'mama_contour_kml', driver = "KML")
 install.packages("remotes")
 remotes::install_github("bacollier/moveud")
 
+
+mama_bursted
+mama_dbbmm
+mama_dbbmm_UD
