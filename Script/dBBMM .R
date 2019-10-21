@@ -98,13 +98,16 @@ plot(mama_spatial, add = T)
 # transform coordinates from lat lon, center = T is required for the dbbmm to operate properly according to Bart on the movebank help chat
 
 #mama_trans <- spTransform(mama_move, center=T)
-#mama_trans2 <- spTransform(x = mama_bursted, CRSobj = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs ', center = T)
-#proj4string(mama_trans2)
 
+mama_bursted_trans <- spTransform(x = mama_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+proj4string(mama_bursted_trans)
+
+str(mama_move)
 #plot(mama_trans2, add = TRUE)
 #str(mama_trans2)
-#longi <- mama_trans2@data$utm.easting
-#lattitude <- mama_trans2@data$utm.northing
+str(mama_bursted)
+longi <- mama_bursted@data$utm.easting
+lattitude <- mama_bursted@data$utm.northing
 #plot(Suisun_NLCD)
 #points(longi,lattitude)
 
@@ -112,20 +115,25 @@ plot(mama_spatial, add = T)
 
 # transform NLCD raster to same projection as the move object above
 
-#current projection
-Suisun_NLCD_trans <- raster(Suisun_NLCD)
-crs(Suisun_NLCD_trans) <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs "
+#current projection - this is not working
+Suisun_nlcd_trans <- raster(nlcd_utm)
+crs(Suisun_nlcd_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 "
 
 plot(Suisun_NLCD_trans)
 plot(Suisun_NLCD)
 
 Suisun_NLCD_trans <- raster(suisun_polygon)
-crs(Suisun_NLCD_trans) <- "+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84"
+crs(Suisun_NLCD_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666"
 proj4string(Suisun_NLCD_trans)
 plot(Suisun_NLCD_trans)
 crs(Suisun_NLCD)
 #transformed projection
 
+# bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
+
+nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+plot(nlcd_utm)
+points(longi,lattitude, cex = 1)
 #Suisun_NLCD_trans <- projectRaster(from = r, crs = new_crs )
 #proj4string(Suisun_NLCD_trans)
 
@@ -133,7 +141,7 @@ crs(Suisun_NLCD)
 
 # From Kranstauber et al: increasing the size of the window increases reliability of the motion variance estimation at the cost of missing short term changes in the variation parameter, and should be close to, but less than, 24. Increasing the size of the margin, in contrast, enhances the power to identify "weak" breakpoints at the cost of not detecting breakpoints within the margin. 
 
-mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Suisun_NLCD_trans, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 60 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
+mama_dbbmm <- brownian.bridge.dyn(mama_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 60 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
 
 #try without the raster - doesn't work, don't worry about it because you have a raster set
 #mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', dimSize = 30, location.error = 10, ext = .3, time.step = 60, margin = 13)
@@ -141,11 +149,13 @@ mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Su
 ## below are the UDs calculated from the dbbmm
 mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
 head(mama_dbbmm_UD)
+str(mama_dbbmm_UD)
 
 ## get the UD raster layer??
 mama_ud <- UDStack(mama_dbbmm)
 head(mama_ud)
 View(mama_ud)
+str(mama_ud)
 
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
