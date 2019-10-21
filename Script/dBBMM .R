@@ -10,7 +10,9 @@ getwd()
 install.packages('FedData')
 library(FedData)
 
-suisun_polygon <- polygon_from_extent(raster::extent(578701, 601868, 4215762, 4234962), proj4string='+proj=utm +datum=WGS84 +zone=10')
+suisun_polygon <- polygon_from_extent(raster::extent(578701, 601868, 4215762, 4234962), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
+
+### the below code brings in the 2011 NLCD layer, but cannot call the 2016 layer, so use code below this to bring in 2016 instead###
 
 #get_nlcd(template = suisun_polygon, label, year = 2016, dataset = "landcover",
 #         raw.dir = "./RAW/NLCD", extraction.dir = paste0("./EXTRACTIONS/",
@@ -21,47 +23,31 @@ Suisun_NLCD <- get_nlcd(template = suisun_polygon, label = 'suisun',  year = 201
 
 plot(Suisun_NLCD)
 #View(Suisun_NLCD)
-print(Suisun_NLCD)
-
-## DON'T DO BELOW CODE INITIALLY - SKIP TO JUST TESTING MAMA DATA BELOW
-## import GPS locations and convert lat/long to utm and create a spatial points file
-
-library(sp)
-library(rgdal)
-
-breeding_2018 <- as.data.frame(read.csv(file = "~/Desktop/R_Forever/RRF/Data/All_Breeding_2018_Nesting_Period.csv"))
-coordinates(breeding_2018) <- c("location.long", "location.lat")
-proj4string(breeding_2018) <- CRS("+proj=longlat +datum=WGS84 + zone10")  ## for example
-
-breeding_2018_WGS <- spTransform(breeding_2018, CRS("+proj=utm +zone=10 ellps=WGS84 + zone10" ))
-breeding_2018_WGS
-
-## For a SpatialPoints object rather than a SpatialPointsDataFrame, just do: 
-breeding_2018_sp <- as(breeding_2018_WGS, "SpatialPoints")
-breeding_2018_sp
+#print(Suisun_NLCD)
 
 
-plot(Suisun_NLCD)
-plot(breeding_2018_sp, pch = 19, color = "black", add = TRUE)
+##### Let's use the 2016 NLCD raster instead ######
 
-
-## trying to bring in 2016 NLCD image below and it doesn't work
 library(raster)
 library(sp)
 library(rgdal)
 
-#nlcd2016 <- brick("~/Desktop/R_Forever/RRF/Data/NLCD_2016_Land_Cover_L48_20190424.tiff")
-
-nlcd2016 <- stack("~/Desktop/R_Forever/RRF/Data/NLCD_2016_Land_Cover_L48_20190424.tiff")
-
+#bring in the raster
+nlcd2016 <- raster("~/Desktop/R_Forever/RRF/Data/NLCD_2016_Land_Cover_L48_20190424.tiff")
+plot(nlcd2016)
+#change the crs to match that of the suisun polygon
 crs(nlcd2016) <- "+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84 +towgs84=0,0,0 " 
+
+#set the extent of the NLCD raster to match that of the suisun polygon created above
 suisun_nlcd_extent <- spTransform(suisun_polygon, CRS(proj4string(nlcd2016)))
-suisun_nlcd_crop <- crop(nlcd2016, suisun_polygon) # this doesn't work and I don't know why
+#suisun_nlcd_crop <- crop(nlcd2016, suisun_polygon) # this doesn't work and I don't know why
 
-nlcd2016
-suisun_polygon
+#use mask function to crop and create a new raster object instead
+suisun_nlcd_crop2 <- mask(nlcd2016, suisun_polygon)
 
-plot(suisun_nlcd_crop)
+plot(suisun_nlcd_crop2)
+plot(suisun_polygon, add = TRUE)
+
 
 ## ok let's try dBBMM with the Mama from 2018 
 
@@ -82,6 +68,9 @@ n.locs(mama_move) # number of locations
 head(timeLag(mama_move, units="mins")) # time difference between locations
 head(timestamps(mama_move))
 
+plot(mama_move, add =TRUE)
+str(mama_move)
+
 # burst the movestack object to exclude any loactions that are greater than 72 minutes apart (because a couple locations are 72 and not 60 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
 
 mama_bursted <- move::burst(mama_move, c('normal','long')[1+(timeLag(mama_move, units='mins')>72)])
@@ -93,29 +82,52 @@ plot(mama_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="lo
 #plot mama's locations with ggmap over map layer just to see if it is geographically correct! - it is
 require(ggmap) #these packages are necessary to work with google maps
 #require(mapproj)
-mama_df <- as(mama_bursted, "data.frame")
-m <- get_map(bbox(extent(mama_bursted)*1.1), source="stamen", zoom=12)
-ggmap(m)+geom_path(data=mama_df, aes(x=location.long, y=location.lat))
+#mama_df <- as(mama_bursted, "data.frame")
+#m <- get_map(bbox(extent(mama_bursted)*1.1), source="stamen", zoom=12)
+#ggmap(m)+geom_path(data=mama_df, aes(x=location.long, y=location.lat))
 
+## let's now create a new clipped NLCD layer to match the extent of the Move object created above (as per Brian's recommendation)
+
+suisun_nlcd_move <- get_nlcd(template = mama_spatial, label = 'suisun',  year = 2011, dataset = "landcover")
+points(suisun_nlcd_move)
+
+mama_nlcd_extent <- alignExtent(mama_spatial, suisun_nlcd_move, snap = "near")
+plot(mama_nlcd_extent)
+plot(mama_spatial, add = T)
 
 # transform coordinates from lat lon, center = T is required for the dbbmm to operate properly according to Bart on the movebank help chat
 
 #mama_trans <- spTransform(mama_move, center=T)
-mama_trans2 <- spTransform(x = mama_bursted, CRSobj = "+proj=aeqd + ellps=WGS84", center = T)
-proj4string(mama_trans2)
+#mama_trans2 <- spTransform(x = mama_bursted, CRSobj = '+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs ', center = T)
+#proj4string(mama_trans2)
+
+#plot(mama_trans2, add = TRUE)
+#str(mama_trans2)
+#longi <- mama_trans2@data$utm.easting
+#lattitude <- mama_trans2@data$utm.northing
+#plot(Suisun_NLCD)
+#points(longi,lattitude)
+
+#Suisun_NLCD_new <- spTransform(Suisun_NLCD,CRSobj = suisun_polygon)
 
 # transform NLCD raster to same projection as the move object above
 
 #current projection
-r <- raster(Suisun_NLCD)
-crs(r) <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0"
+Suisun_NLCD_trans <- raster(Suisun_NLCD)
+crs(Suisun_NLCD_trans) <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=23 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs "
 
-new_crs <- "+proj=aeqd +ellps=WGS84 +lon_0=-121.910674 +lat_0=38.115666"
+plot(Suisun_NLCD_trans)
+plot(Suisun_NLCD)
 
+Suisun_NLCD_trans <- raster(suisun_polygon)
+crs(Suisun_NLCD_trans) <- "+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84"
+proj4string(Suisun_NLCD_trans)
+plot(Suisun_NLCD_trans)
+crs(Suisun_NLCD)
 #transformed projection
 
-Suisun_NLCD_trans <- projectRaster(from = r, crs = new_crs )
-proj4string(Suisun_NLCD_trans)
+#Suisun_NLCD_trans <- projectRaster(from = r, crs = new_crs )
+#proj4string(Suisun_NLCD_trans)
 
 #run the dbbmm function - NOTE only odd numbers for margin and window size will produce valid likelihood estimations for motion variance
 
@@ -128,10 +140,12 @@ mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', raster = Su
 
 ## below are the UDs calculated from the dbbmm
 mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
+head(mama_dbbmm_UD)
 
 ## get the UD raster layer??
 mama_ud <- UDStack(mama_dbbmm)
 head(mama_ud)
+View(mama_ud)
 
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
@@ -157,6 +171,15 @@ mama_cont5 <- getVolumeUD(mama_dbbmm_UD)
 mama_cont5 <- mama_cont5<=.5
 area5 <- sum(values(mama_cont5))
 area5
+
+## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
+
+mama_spatial <- raster2contour(mama_dbbmm_UD) # must be the .UD class, not the DBBMM class
+plot(mama_spatial)
+
+plot(mama_move)
+plot(mama_dbbmm_UD)
+plot(mama_spatial)
 
 ## save the objects above
 #save(x=mama_dbbmm, file="~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama.RData")
@@ -235,4 +258,31 @@ rangeud <- 1104
 ts <- 72
 
 mama_ud <- move.forud(mama_dbbmm, range.subset = 10:12, ts = .2, ras = Suisun_NLCD_trans, le = 10, lev = c(50, 95), crs = "+proj=aeqd + ellps=WGS84", path = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output", name = "mama_ud")
+
+summary(mama_dbbmm)
+emd(mama_dbbmm)
+plot(mama_dbbmm)
+
+
+## DON'T DO BELOW CODE INITIALLY - SKIP TO JUST TESTING MAMA DATA BELOW
+## import GPS locations and convert lat/long to utm and create a spatial points file
+
+library(sp)
+library(rgdal)
+
+breeding_2018 <- as.data.frame(read.csv(file = "~/Desktop/R_Forever/RRF/Data/All_Breeding_2018_Nesting_Period.csv"))
+coordinates(breeding_2018) <- c("location.long", "location.lat")
+proj4string(breeding_2018) <- CRS("+proj=longlat +datum=WGS84 + zone10")  ## for example
+
+breeding_2018_WGS <- spTransform(breeding_2018, CRS("+proj=utm +zone=10 ellps=WGS84 + zone10" ))
+breeding_2018_WGS
+
+## For a SpatialPoints object rather than a SpatialPointsDataFrame, just do: 
+breeding_2018_sp <- as(breeding_2018_WGS, "SpatialPoints")
+breeding_2018_sp
+
+
+plot(Suisun_NLCD)
+plot(breeding_2018_sp, pch = 19, color = "black", add = TRUE)
+
 
