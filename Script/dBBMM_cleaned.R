@@ -26,7 +26,8 @@ install.packages("move")
 library(move)
 
 #bring in file from Movebank
-mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
+#mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
+mama_move <- move(x = "C:/Users/sskalos/Documents/noha-move-hab/Data/SIMP 02.csv")
 show(mama_move)
 n.locs(mama_move) # number of locations
 head(timeLag(mama_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
@@ -40,10 +41,12 @@ mama_bursted <- move::burst(mama_move, c('normal','long')[1+(timeLag(mama_move, 
 #par(mfcol=1:2)
 plot(mama_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
 
-plot(mama_move, add =TRUE)
-str(mama_move)
+#plot(mama_move, add =TRUE)
+#str(mama_move)
 
 #plot mama's locations with ggmap over map layer just to see if it is geographically correct! - it is
+install.packages("ggmap")
+library(ggmap)
 require(ggmap) #these packages are necessary to work with google maps
 #require(mapproj)
 mama_df <- as(mama_bursted, "data.frame")
@@ -64,7 +67,7 @@ str(mama_bursted)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
-nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+nlcd_utm <- raster("C:/Users/sskalos/Documents/noha-move-hab/Data/Raster_UTM/NLCD_UTM.tif")
 plot(nlcd_utm)
 str(nlcd_utm)
 as.data.frame(nlcd_utm, xy = TRUE)
@@ -101,7 +104,7 @@ summary(mama_ud)
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
 par(mfrow=c(1,2))
 plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
-zoom(mama_dbbmm_UD)
+#zoom(mama_dbbmm_UD)
 plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
 lines(mama_bursted_trans, center=TRUE, col=3, lwd=2)
 #plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
@@ -130,7 +133,14 @@ dbbmm.df <- as.data.frame(mama_dbbmm_UD, xy = TRUE)
 mama_ud_raster <- rasterFromXYZ(dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
 
 ## write raster - this is returning an empty raster and we don't know why
-writeRaster(mama_ud_raster, "~/Desktop/R_Forever/RRF/Output/mama_ud_raster.tif", overwrite = TRUE)
+writeRaster(mama_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+writeRaster(mama_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+writeRaster(mama_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster3.tif", overwrite = TRUE)
+
+
+writeRaster(mama_dbbmm_UD, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster4.tif", overwrite = TRUE)
 
 #but it does create the raster appropriately and plots below (weird)
 plot(mama_ud_raster)
