@@ -329,6 +329,7 @@ plot(breeding_2018_sp, pch = 19, color = "black", add = TRUE)
 
 ## create spatial points dataframe with center points in each grid cell, then extract values from NLCD grid cells to get landcover values, not categories, which is what is currently happening
 
+#using the nlcd_utm raster lines up with the correct rows and columns and we can extract the landcover values
 nlcd_sp <- SpatialPoints(dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans))
 nlcd_extract <- extract(nlcd_utm, nlcd_sp)
 head(nlcd_extract)
@@ -337,7 +338,23 @@ str(Suisun_NLCD)
 str(Suisun_nlcd_trans)
 str(mama_dbbmm_UD)
 
-# test
+# test to make sure it works - it does
 plot(mama_dbbmm_UD)
 library(scales)
 plot(nlcd_utm, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(dbbmm.df, nlcd_extract)
+head(final)
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+sum(prob.vec)
+probs.cover.tables <- cbind(prob.vec, unique.vec)
