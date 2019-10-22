@@ -88,12 +88,12 @@ require(ggmap) #these packages are necessary to work with google maps
 
 ## let's now create a new clipped NLCD layer to match the extent of the Move object created above (as per Brian's recommendation)
 
-suisun_nlcd_move <- get_nlcd(template = mama_spatial, label = 'suisun',  year = 2011, dataset = "landcover")
-points(suisun_nlcd_move)
+#suisun_nlcd_move <- get_nlcd(template = mama_spatial, label = 'suisun',  year = 2011, dataset = "landcover")
+#points(suisun_nlcd_move)
 
-mama_nlcd_extent <- alignExtent(mama_spatial, suisun_nlcd_move, snap = "near")
-plot(mama_nlcd_extent)
-plot(mama_spatial, add = T)
+#mama_nlcd_extent <- alignExtent(mama_spatial, suisun_nlcd_move, snap = "near")
+#plot(mama_nlcd_extent)
+#plot(mama_spatial, add = T)
 
 # transform coordinates from lat lon, center = T is required for the dbbmm to operate properly according to Bart on the movebank help chat
 
@@ -293,7 +293,7 @@ install.packages("remotes")
 remotes::install_github("bacollier/moveud")
 library(moveud)
 
-## another way to save the UDs
+## another way to save the UDs - doesn't work, don't worry about it
 
 rangeud <- 1104
 ts <- 72
