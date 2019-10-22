@@ -118,21 +118,26 @@ lattitude <- mama_bursted@data$utm.northing
 #current projection - this is not working
 Suisun_nlcd_trans <- raster(nlcd_utm)
 crs(Suisun_nlcd_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 "
+str(nlcd_utm)
 
 plot(Suisun_NLCD_trans)
 plot(Suisun_NLCD)
 
-Suisun_NLCD_trans <- raster(suisun_polygon)
-crs(Suisun_NLCD_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666"
-proj4string(Suisun_NLCD_trans)
-plot(Suisun_NLCD_trans)
-crs(Suisun_NLCD)
+#Suisun_NLCD_trans <- raster(suisun_polygon)
+#crs(Suisun_NLCD_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666"
+#proj4string(Suisun_NLCD_trans)
+#plot(Suisun_NLCD_trans)
+#crs(Suisun_NLCD)
 #transformed projection
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
 nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
 plot(nlcd_utm)
+str(nlcd_utm)
+as.data.frame(nlcd_utm, xy = TRUE)
+
+
 points(longi,lattitude, cex = 1)
 #Suisun_NLCD_trans <- projectRaster(from = r, crs = new_crs )
 #proj4string(Suisun_NLCD_trans)
@@ -141,7 +146,7 @@ points(longi,lattitude, cex = 1)
 
 # From Kranstauber et al: increasing the size of the window increases reliability of the motion variance estimation at the cost of missing short term changes in the variation parameter, and should be close to, but less than, 24. Increasing the size of the margin, in contrast, enhances the power to identify "weak" breakpoints at the cost of not detecting breakpoints within the margin. 
 
-mama_dbbmm <- brownian.bridge.dyn(mama_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 60 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
+mama_dbbmm <- brownian.bridge.dyn(mama_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans, location.error = 10, ext = .3, time.step = 72, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 60 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
 
 #try without the raster - doesn't work, don't worry about it because you have a raster set
 #mama_dbbmm <- brownian.bridge.dyn(mama_trans2, burstType = 'normal', dimSize = 30, location.error = 10, ext = .3, time.step = 60, margin = 13)
@@ -160,9 +165,10 @@ str(mama_ud)
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
 par(mfrow=c(1,2))
+str(suisun_polygon)
 plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
 plot(mama_dbbmm_UD, xlab="longitude", ylab="latitude")
-lines(spTransform(mama_bursted, center=TRUE), col=3, lwd=2)
+lines(spTransform(mama_move, center=TRUE), col=3, lwd=2)
 #plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
 #points(spTransform(mama_bursted, center=TRUE), col=8)
 
@@ -184,8 +190,33 @@ area5
 
 ## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
 
-mama_spatial <- raster2contour(mama_dbbmm_UD) # must be the .UD class, not the DBBMM class
-plot(mama_spatial)
+
+str(Suisun_nlcd_trans)
+str(mama_dbbmm_UD)
+
+as.data.frame(Suisun_NLCD, xy = TRUE)
+str(nlcd_utm)
+
+#dbbmm dataframe- keep this!
+dbbmm.df <- as.data.frame(mama_dbbmm_UD, xy = TRUE)
+mama_ud_raster <- rasterFromXYZ(dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
+
+#coordinates(dbbmm.df) <- ~ x + y
+#gridded(dbbmm.df) <- TRUE
+#str(dbbmm.df)
+
+#mama_ud_raster <- raster(dbbmm.df)
+#crs(mama_ud_raster) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0"
+#proj4string(mama_ud_raster)
+#str(mama_ud_raster)
+
+## write raster
+writeRaster(mama_ud_raster, "~/Desktop/R_Forever/RRF/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+plot(mama_ud_raster)
+str(mama_ud_raster)
+#mama_spatial <- raster2contour(mama_dbbmm_UD) # must be the .UD class, not the DBBMM class
+#plot(mama_spatial)
 
 plot(mama_move)
 plot(mama_dbbmm_UD)
@@ -296,3 +327,17 @@ plot(Suisun_NLCD)
 plot(breeding_2018_sp, pch = 19, color = "black", add = TRUE)
 
 
+## create spatial points dataframe with center points in each grid cell, then extract values from NLCD grid cells to get landcover values, not categories, which is what is currently happening
+
+nlcd_sp <- SpatialPoints(dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans))
+nlcd_extract <- extract(nlcd_utm, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+str(Suisun_NLCD)
+str(Suisun_nlcd_trans)
+str(mama_dbbmm_UD)
+
+# test
+plot(mama_dbbmm_UD)
+library(scales)
+plot(nlcd_utm, col = alpha("red", .5), add = TRUE)
