@@ -159,10 +159,15 @@ require(move)
 cont2 <-raster2contour(mama_ud, level=c(.5,.95))
 writeOGR(cont2, dsn = '.', layer = 'mama_contour2', driver = "ESRI Shapefile")
 
-#orks with either the mama_ud raster (above) or the mama_dbbmm_UD raster below
+#works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
 require(move)
 cont3 <-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont3, dsn = '.', layer = 'mama_contour3', driver = "ESRI Shapefile")
+
+# saves the contours to a kml file
+install.packages('plotKML')
+require(plotKML)
+kml(cont3)
 
 #getwd()
 #ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
@@ -218,3 +223,11 @@ points(longi,lattitude, cex = .1, add = TRUE)
 summary(longi)
 summary(lattitude)
 
+## Now let's do the above with the other females
+## SIMP 01 Laureen
+
+laureen_move <- move(x = "C:/Users/sskalos/Documents/noha-move-hab/Data/SIMP 01.csv")
+show(laureen_move)
+n.locs(laureen_move) # number of locations
+head(timeLag(laureen_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
+head(timestamps(laureen_move))
