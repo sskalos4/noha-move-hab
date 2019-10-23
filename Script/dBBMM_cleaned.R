@@ -26,8 +26,8 @@ install.packages("move")
 library(move)
 
 #bring in file from Movebank
-#mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
-mama_move <- move(x = "C:/Users/sskalos/Documents/noha-move-hab/Data/SIMP 02.csv")
+mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
+#mama_move <- move(x = "C:/Users/sskalos/Documents/noha-move-hab/Data/SIMP 02.csv")
 show(mama_move)
 n.locs(mama_move) # number of locations
 head(timeLag(mama_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
@@ -67,7 +67,7 @@ str(mama_bursted)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
-nlcd_utm <- raster("C:/Users/Shannon/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
 #nlcd_utm <- raster("C:/Users/sskalos/Documents/noha-move-hab/Data/Raster_UTM/NLCD_UTM.tif")
 plot(nlcd_utm)
 str(nlcd_utm)
@@ -131,17 +131,23 @@ area5
 
 #dbbmm dataframe- keep this!
 dbbmm.df <- as.data.frame(mama_dbbmm_UD, xy = TRUE)
+dbbmm.df[which(dbbmm.df[,3] == 0), 3] <- NA # this removes the zeros from the raster file
 mama_ud_raster <- rasterFromXYZ(dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
 
 ## write raster - this is returning an empty raster and we don't know why
-writeRaster(mama_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+#writeRaster(mama_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
 
-writeRaster(mama_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
-
-writeRaster(mama_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster3.tif", overwrite = TRUE)
+writeRaster(mama_ud_raster, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
 
 
-writeRaster(mama_dbbmm_UD, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster4.tif", overwrite = TRUE)
+#writeRaster(mama_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+#writeRaster(mama_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster3.tif", overwrite = TRUE)
+
+
+#writeRaster(mama_dbbmm_UD, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster4.tif", overwrite = TRUE)
+
+writeRaster(mama_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/mama_ud_raster4.tif", overwrite = TRUE)
 
 #but it does create the raster appropriately and plots below (weird)
 plot(mama_ud_raster)
