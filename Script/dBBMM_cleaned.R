@@ -63,7 +63,7 @@ proj4string(mama_bursted_trans)
 #str(mama_move)
 #plot(mama_trans2, add = TRUE)
 #str(mama_trans2)
-str(mama_bursted)
+str(mama_bursted_trans)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
@@ -81,7 +81,7 @@ str(nlcd_utm)
 str(Suisun_nlcd_trans)
 
 plot(Suisun_nlcd_trans)
-plot(Suisun_NLCD)
+
 
 #run the dbbmm function - NOTE only odd numbers for margin and window size will produce valid likelihood estimations for motion variance
 
@@ -187,8 +187,9 @@ nlcd_extract <- extract(nlcd_utm, nlcd_sp)
 head(nlcd_extract)
 nlcd_extract[which(!is.na(nlcd_extract))]
 #str(Suisun_NLCD)
-#str(Suisun_nlcd_trans)
-#str(mama_dbbmm_UD)
+str(Suisun_nlcd_trans)
+str(mama_dbbmm_UD)
+str(nlcd_utm)
 
 # test to make sure it works - it does (red square represents the nlcd raster layer)
 plot(mama_dbbmm_UD)
@@ -269,19 +270,19 @@ str(laureen_bursted)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
-nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
-plot(nlcd_utm)
-str(nlcd_utm)
-as.data.frame(nlcd_utm, xy = TRUE)
+nlcd_utm_laureen <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
 
 #current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
-str(nlcd_utm)
+str(nlcd_utm_laureen)
 str(laureen_bursted_trans)
 
-Suisun_nlcd_trans_laureen <- raster(nlcd_utm)
+Suisun_nlcd_trans_laureen <- raster(nlcd_utm_laureen)
 crs(Suisun_nlcd_trans_laureen) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
 
-#now they match
+#now they match coordinate systems
 str(laureen_bursted_trans)
 str(Suisun_nlcd_trans_laureen)
 
@@ -293,7 +294,7 @@ head(laureen_dbbmm_UD)
 str(laureen_dbbmm_UD)
 summary(laureen_dbbmm_UD)
 
-## get the UD raster layer??
+## get the UD raster layer?? - don't need this
 laureen_ud <- UDStack(laureen_dbbmm)
 summary(laureen_ud)
 
@@ -370,9 +371,10 @@ nlcd_sp_laureen <- SpatialPoints(laureen.dbbmm.df[,1:2], proj4string = crs(Suisu
 nlcd_extract_laureen <- extract(nlcd_utm, nlcd_sp_laureen)
 head(nlcd_extract_laureen)
 nlcd_extract_laureen[which(!is.na(nlcd_extract_laureen))]
-#str(Suisun_NLCD)
-#str(Suisun_nlcd_trans)
-#str(mama_dbbmm_UD)
+
+## check that both layers below contain the same # of columns and rows
+str(Suisun_nlcd_trans_laureen)
+str(laureen_dbbmm_UD)
 
 # test to make sure it works - it does (red square represents the nlcd raster layer)
 plot(laureen_dbbmm_UD)
@@ -452,16 +454,16 @@ str(joyce_bursted)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
-nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
-plot(nlcd_utm)
-str(nlcd_utm)
-as.data.frame(nlcd_utm, xy = TRUE)
+nlcd_utm_joyce <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
 
 #current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
-str(nlcd_utm)
+str(nlcd_utm_joyce)
 str(joyce_bursted)
 
-Suisun_nlcd_trans_joyce <- raster(nlcd_utm)
+Suisun_nlcd_trans_joyce <- raster(nlcd_utm_joyce)
 crs(Suisun_nlcd_trans_joyce) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.003483 +lat_0=38.2062325"
 
 #now they match
@@ -553,9 +555,10 @@ nlcd_sp_joyce <- SpatialPoints(joyce.dbbmm.df[,1:2], proj4string = crs(Suisun_nl
 nlcd_extract_joyce <- extract(nlcd_utm, nlcd_sp_joyce)
 head(nlcd_extract_joyce)
 nlcd_extract_joyce[which(!is.na(nlcd_extract_joyce))]
-#str(Suisun_NLCD)
-#str(Suisun_nlcd_trans)
-#str(mama_dbbmm_UD)
+
+# check to make sure they have the correct # of columns and rows
+str(Suisun_nlcd_trans_joyce)
+str(joyce_dbbmm_UD)
 
 # test to make sure it works - it does (red square represents the nlcd raster layer)
 plot(joyce_dbbmm_UD)
@@ -636,16 +639,16 @@ str(cinnamon_bursted)
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
-nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
-plot(nlcd_utm)
-str(nlcd_utm)
-as.data.frame(nlcd_utm, xy = TRUE)
+nlcd_utm_cinn <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
 
 #current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
-str(nlcd_utm)
+str(nlcd_utm_cinn)
 str(cinnamon_bursted_trans)
 
-Suisun_nlcd_trans_cinnamon <- raster(nlcd_utm)
+Suisun_nlcd_trans_cinnamon <- raster(nlcd_utm_cinn)
 crs(Suisun_nlcd_trans_cinnamon) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
 
 #now they match
@@ -737,9 +740,10 @@ nlcd_sp_cinnamon <- SpatialPoints(cinnamon.dbbmm.df[,1:2], proj4string = crs(Sui
 nlcd_extract_cinnamon <- extract(nlcd_utm, nlcd_sp_cinnamon)
 head(nlcd_extract_cinnamon)
 nlcd_extract_cinnamon[which(!is.na(nlcd_extract_cinnamon))]
-#str(Suisun_NLCD)
-#str(Suisun_nlcd_trans)
-#str(mama_dbbmm_UD)
+
+#check to make sure the have the same # of columns and rows
+str(Suisun_nlcd_trans_cinnamon)
+str(cinnamon_dbbmm_UD)
 
 # test to make sure it works - it does (red square represents the nlcd raster layer)
 plot(cinnamon_dbbmm_UD)
