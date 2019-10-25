@@ -1727,17 +1727,27 @@ nlcd_utm_Bre <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
 #as.data.frame(nlcd_utm, xy = TRUE)
 
 #current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
-str(nlcd_utm_Bre)
-str(Bre_bursted_trans)
+crs(nlcd_utm_Bre)
+crs(nlcd_new)
+crs(Bre_bursted_trans)
 
 Suisun_nlcd_trans_Bre <- raster(nlcd_utm_Bre)
 crs(Suisun_nlcd_trans_Bre) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
 
 #now they match
-str(Bre_bursted_trans)
+crs(Bre_bursted_trans)
 str(Suisun_nlcd_trans_Bre)
+crs(nlcd_new)
+summary(nlcd_new)
 
-Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Bre, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+plot(nlcd_new)
+plot(Bre_bursted_trans, add = TRUE)
+plot(nlcd_utm_Bre)
+
+nlcd_new@data
+nlcd_utm_Bre@data
+
+Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = nlcd_tm_Bre, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
 
 ## below are the UDs calculated from the dbbmm
 Bre_dbbmm_UD<-new(".UD",calc(Bre_dbbmm, sum)) ## it works!!!
@@ -1810,7 +1820,7 @@ str(Bre_ud_raster) # and there are values within this new raster (extra weird)
 #works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
 #require(move)
 cont_Bre <-raster2contour(Bre_dbbmm_UD, level=c(.5,.95))
-writeOGR(cont_Bre, dsn = '.', layer = 'Bre_contour', driver = "ESRI Shapefile")
+writeOGR(cont_Bre, dsn = '.', layer = 'Bre_contour', driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
 #getwd()
 #ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
@@ -1863,21 +1873,34 @@ write.csv(probs.cover.tables, file = "Bre_landcover_probs_final.csv")
 
 library(FedData)
 
-suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4233434, 4212972), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
+#suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
 
 
-suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4233434, 4212972), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
+suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
 
-
+#test
+#sac_polygon_new <- polygon_from_extent(raster::extent(604115, 633352, 4268919, 4283557), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
 
 plot(suisun_polygon_new)
 
 ##download the NLCD raster and clip to the Suisun polygon (note: can only download 2011 with this function, not 2016)
 
-Suisun_NLCD_new <- get_nlcd(template = suisun_polygon_new, label = 'suisun',  year = 2011, dataset = "landcover")
+Suisun_NLCD_new <- get_nlcd(template = suisun_polygon_new, label = 'suisun2',  year = 2011, dataset = "landcover")
+
+#Sac_NLCD_new <- get_nlcd(template = sac_polygon_new, label = 'sac',  year = 2011, dataset = "landcover")
 
 plot(Suisun_NLCD_new)
+str(Suisun_NLCD_new)
+str(suisun_polygon_new)
 
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575"
+#nlcd_new <- st_transform(Suisun_NLCD_new, crs = the_crs)
+nlcd_new <- projectRaster(Suisun_NLCD_new, crs = newproj)
+str(nlcd_new)
 
 #Suisun_NLCD_new <- spTransform(Suisun_NLCD,CRSobj = suisun_polygon)
 
