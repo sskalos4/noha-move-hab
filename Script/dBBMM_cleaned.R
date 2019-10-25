@@ -1205,7 +1205,7 @@ crs(Suisun_nlcd_trans_Salty) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps
 str(Salty_bursted_trans)
 str(Suisun_nlcd_trans_Salty)
 
-Salty_dbbmm <- brownian.bridge.dyn(Salty_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Salty, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate Saltyakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
+Salty_dbbmm <- brownian.bridge.dyn(Salty_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Salty, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
 
 ## below are the UDs calculated from the dbbmm
 Salty_dbbmm_UD<-new(".UD",calc(Salty_dbbmm, sum)) ## it works!!!
@@ -1271,14 +1271,14 @@ str(Salty_ud_raster) # and there are values within this new raster (extra weird)
 #writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
 
 ## try with mama data - it works
-require(move)
+#require(move)
 #cont2 <-raster2contour(Salty_ud, level=c(.5,.95))
 #writeOGR(cont2, dsn = '.', layer = 'Salty_contour2', driver = "ESRI Shapefile")
 
 #works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
-require(move)
+#require(move)
 cont_Salty <-raster2contour(Salty_dbbmm_UD, level=c(.5,.95))
-writeOGR(cont_Salty, dsn = '.', layer = 'Salty_contour', driver = "ESRI Shapefile")
+writeOGR(cont_Salty, dsn = '.', layer = 'Salty_contour', driver = "ESRI Shapefile", overwrite_layer = TRUE)
 
 #getwd()
 #ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
@@ -1326,10 +1326,572 @@ probs.cover.tables <- cbind(prob.vec, unique.vec)
 probs.cover.tables
 write.csv(probs.cover.tables, file = "Salty_landcover_probs_final.csv")
 
+## Now let's do the above with the other females
+## NOHA 629 Marlana
+
+library(move)
 
 Marlana_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 629.csv")
+show(Marlana_move)
+n.locs(Marlana_move) # number of locations
+head(timeLag(Marlana_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
+head(timestamps(Marlana_move))
+summary(timeLag(Marlana_move, units="mins"))
+Marlana_lag <- timeLag(Marlana_move, units="mins")
+write.csv(Marlana_lag, file = "Marlana_lag.csv")
 
+# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 31.5 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+
+Marlana_bursted <- move::burst(Marlana_move, c('normal','long')[1+(timeLag(Marlana_move, units='mins')>31.5)])
+
+#plot Marlana's locations
+#par(mfcol=1:2)
+plot(Marlana_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
+
+#plot Marlana's locations with ggmap over map layer just to see if it is geographically correct! - it is
+install.packages("ggmap")
+library(ggmap)
+require(ggmap) #these packages are necessary to work with google maps
+#require(mapproj)
+Marlana_df <- as(Marlana_bursted, "data.frame")
+m <- get_map(bbox(extent(Marlana_bursted)*1.1), source="stamen", zoom=12)
+ggmap(m)+geom_path(data=Marlana_df, aes(x=location.long, y=location.lat))
+
+# transform coordinates from lat lon, center = T is requiMarlana for the dbbmm to operate properly according to Bart on the movebank help chat
+
+
+Marlana_bursted_trans <- spTransform(x = Marlana_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
+proj4string(Marlana_bursted_trans)
+
+str(Marlana_bursted)
+
+# bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
+
+nlcd_utm_Marlana <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
+
+#current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
+str(nlcd_utm_Marlana)
+str(Marlana_bursted_trans)
+
+Suisun_nlcd_trans_Marlana <- raster(nlcd_utm_Marlana)
+crs(Suisun_nlcd_trans_Marlana) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
+
+#now they match
+str(Marlana_bursted_trans)
+str(Suisun_nlcd_trans_Marlana)
+
+Marlana_dbbmm <- brownian.bridge.dyn(Marlana_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Marlana, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+
+## below are the UDs calculated from the dbbmm
+Marlana_dbbmm_UD<-new(".UD",calc(Marlana_dbbmm, sum)) ## it works!!!
+head(Marlana_dbbmm_UD)
+str(Marlana_dbbmm_UD)
+summary(Marlana_dbbmm_UD)
+
+## get the UD raster layer?? 
+#Marlana_ud <- UDStack(Marlana_dbbmm)
+#summary(Marlana_ud)
+
+#now plot the UD on the left and the actual movement path on the right
+#I can't figure out how to change the map area such that the map area is zoomed in, but whatever
+par(mfrow=c(1,2))
+plot(Marlana_dbbmm_UD, xlab="longitude", ylab="latitude")
+#zoom(Marlana_dbbmm_UD)
+plot(Marlana_dbbmm_UD, xlab="longitude", ylab="latitude")
+lines(Marlana_bursted_trans, center=TRUE, col=3, lwd=2)
+#plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
+#points(spTransform(mama_bursted, center=TRUE), col=8)
+
+# this plots the 50% and 95% UD contour lines around the UDs
+plot(Marlana_dbbmm_UD, xlab="location_long", ylab="location_lat")
+contour(Marlana_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+
+#get the area of the 95% UD - i think these areas are in meters
+Marlana_cont95 <- getVolumeUD(Marlana_dbbmm_UD)
+Marlana_cont95 <- Marlana_cont95<=.95
+area95 <- sum(values(Marlana_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Marlana_cont5 <- getVolumeUD(Marlana_dbbmm_UD)
+Marlana_cont5 <- Marlana_cont5<=.5
+area5 <- sum(values(Marlana_cont5))
+area5
+
+## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
+
+#dbbmm dataframe- keep this!
+Marlana.dbbmm.df <- as.data.frame(Marlana_dbbmm_UD, xy = TRUE)
+Marlana_ud_raster <- rasterFromXYZ(Marlana.dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
+
+## write raster - this is returning an empty raster and we don't know why
+#writeRaster(Marlana_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+#writeRaster(Marlana_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+#writeRaster(Marlana_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/lauren_ud_raster3.tif", overwrite = TRUE)
+
+writeRaster(Marlana_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Marlana_ud_raster.tif", overwrite = TRUE)
+
+#but it does create the raster appropriately and plots below (weird)
+plot(Marlana_ud_raster)
+str(Marlana_ud_raster) # and there are values within this new raster (extra weird)
+
+#save contours to shapefiles - this works
+
+#example from Bart on Movebank - it works
+#require(move)
+#example(brownian.bridge.dyn)
+#cont<-raster2contour(dbbmm, level=c(.5,.95))
+#writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
+
+## try with mama data - it works
+#require(move)
+#cont2 <-raster2contour(Marlana_ud, level=c(.5,.95))
+#writeOGR(cont2, dsn = '.', layer = 'Marlana_contour2', driver = "ESRI Shapefile")
+
+#works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
+#require(move)
+cont_Marlana <-raster2contour(Marlana_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_Marlana, dsn = '.', layer = 'Marlana_contour', driver = "ESRI Shapefile", overwrite_layer = TRUE)
+
+#getwd()
+#ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
+#mama_WGS <- spTransform(cont3, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")) 
+#writeOGR(cont3, dsn = "mama_contours.kml", layer = "mama_WGS", driver = "KML", overwrite_layer = TRUE)
+
+#using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp_Marlana <- SpatialPoints(Marlana.dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans_Marlana))
+nlcd_extract_Marlana <- extract(nlcd_utm_Marlana, nlcd_sp_Marlana)
+head(nlcd_extract_Marlana)
+nlcd_extract_Marlana[which(!is.na(nlcd_extract_Marlana))]
+
+#check to make sure the have the same # of columns and rows
+str(Suisun_nlcd_trans_Marlana)
+str(Marlana_dbbmm_UD)
+
+# test to make sure it works - it does (Marlana square represents the nlcd raster layer)
+plot(Marlana_dbbmm_UD)
+library(scales)
+plot(nlcd_utm_Marlana, col = alpha("Red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final_Marlana <- cbind.data.frame(Marlana.dbbmm.df, nlcd_extract_Marlana)
+head(final_Marlana)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final_Marlana <- final_Marlana[which(!is.na(final_Marlana[,4])),]
+head(final_Marlana)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final_Marlana[,4])))
+unique.vec <- unique(final_Marlana[,4])
+tot.prob <- sum(final_Marlana[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final_Marlana[which(final_Marlana[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Marlana_landcover_probs_final.csv")
+
+## Now let's do the above with the other females
+## NOHA 630 Jelly
+
+library(move)
 Jelly_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 630.csv")
+show(Jelly_move)
+n.locs(Jelly_move) # number of locations
+head(timeLag(Jelly_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
+head(timestamps(Jelly_move))
+summary(timeLag(Jelly_move, units="mins"))
+Jelly_lag <- timeLag(Jelly_move, units="mins")
+write.csv(Jelly_lag, file = "Jelly_lag.csv")
 
+# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 35 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+
+Jelly_bursted <- move::burst(Jelly_move, c('normal','long')[1+(timeLag(Jelly_move, units='mins')>35)])
+
+#plot Jelly's locations
+#par(mfcol=1:2)
+plot(Jelly_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
+
+#plot Jelly's locations with ggmap over map layer just to see if it is geographically correct! - it is
+#install.packages("ggmap")
+library(ggmap)
+require(ggmap) #these packages are necessary to work with google maps
+#require(mapproj)
+Jelly_df <- as(Jelly_bursted, "data.frame")
+m <- get_map(bbox(extent(Jelly_bursted)*1.1), source="stamen", zoom=12)
+ggmap(m)+geom_path(data=Jelly_df, aes(x=location.long, y=location.lat))
+
+# transform coordinates from lat lon, center = T is requiJelly for the dbbmm to operate properly according to Bart on the movebank help chat
+
+
+Jelly_bursted_trans <- spTransform(x = Jelly_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
+proj4string(Jelly_bursted_trans)
+
+str(Jelly_bursted)
+
+# bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
+
+nlcd_utm_Jelly <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
+
+#current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
+str(nlcd_utm_Jelly)
+str(Jelly_bursted_trans)
+
+Suisun_nlcd_trans_Jelly <- raster(nlcd_utm_Jelly)
+crs(Suisun_nlcd_trans_Jelly) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
+
+#now they match
+str(Jelly_bursted_trans)
+str(Suisun_nlcd_trans_Jelly)
+
+Jelly_dbbmm <- brownian.bridge.dyn(Jelly_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Jelly, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+
+## below are the UDs calculated from the dbbmm
+Jelly_dbbmm_UD<-new(".UD",calc(Jelly_dbbmm, sum)) ## it works!!!
+head(Jelly_dbbmm_UD)
+str(Jelly_dbbmm_UD)
+summary(Jelly_dbbmm_UD)
+
+## get the UD raster layer?? 
+#Jelly_ud <- UDStack(Jelly_dbbmm)
+#summary(Jelly_ud)
+
+#now plot the UD on the left and the actual movement path on the right
+#I can't figure out how to change the map area such that the map area is zoomed in, but whatever
+par(mfrow=c(1,2))
+plot(Jelly_dbbmm_UD, xlab="longitude", ylab="latitude")
+#zoom(Jelly_dbbmm_UD)
+plot(Jelly_dbbmm_UD, xlab="longitude", ylab="latitude")
+lines(Jelly_bursted_trans, center=TRUE, col=3, lwd=2)
+#plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
+#points(spTransform(mama_bursted, center=TRUE), col=8)
+
+# this plots the 50% and 95% UD contour lines around the UDs
+plot(Jelly_dbbmm_UD, xlab="location_long", ylab="location_lat")
+contour(Jelly_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+
+#get the area of the 95% UD - i think these areas are in meters
+Jelly_cont95 <- getVolumeUD(Jelly_dbbmm_UD)
+Jelly_cont95 <- Jelly_cont95<=.95
+area95 <- sum(values(Jelly_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Jelly_cont5 <- getVolumeUD(Jelly_dbbmm_UD)
+Jelly_cont5 <- Jelly_cont5<=.5
+area5 <- sum(values(Jelly_cont5))
+area5
+
+## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
+
+#dbbmm dataframe- keep this!
+Jelly.dbbmm.df <- as.data.frame(Jelly_dbbmm_UD, xy = TRUE)
+Jelly_ud_raster <- rasterFromXYZ(Jelly.dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
+
+## write raster - this is returning an empty raster and we don't know why
+#writeRaster(Jelly_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+#writeRaster(Jelly_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+#writeRaster(Jelly_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/lauren_ud_raster3.tif", overwrite = TRUE)
+
+writeRaster(Jelly_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Jelly_ud_raster.tif", overwrite = TRUE)
+
+#but it does create the raster appropriately and plots below (weird)
+plot(Jelly_ud_raster)
+str(Jelly_ud_raster) # and there are values within this new raster (extra weird)
+
+#save contours to shapefiles - this works
+
+#example from Bart on Movebank - it works
+#require(move)
+#example(brownian.bridge.dyn)
+#cont<-raster2contour(dbbmm, level=c(.5,.95))
+#writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
+
+## try with mama data - it works
+#require(move)
+#cont2 <-raster2contour(Jelly_ud, level=c(.5,.95))
+#writeOGR(cont2, dsn = '.', layer = 'Jelly_contour2', driver = "ESRI Shapefile")
+
+#works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
+#require(move)
+cont_Jelly <-raster2contour(Jelly_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_Jelly, dsn = '.', layer = 'Jelly_contour', driver = "ESRI Shapefile", overwrite_layer = TRUE)
+
+#getwd()
+#ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
+#mama_WGS <- spTransform(cont3, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")) 
+#writeOGR(cont3, dsn = "mama_contours.kml", layer = "mama_WGS", driver = "KML", overwrite_layer = TRUE)
+
+#using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp_Jelly <- SpatialPoints(Jelly.dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans_Jelly))
+nlcd_extract_Jelly <- extract(nlcd_utm_Jelly, nlcd_sp_Jelly)
+head(nlcd_extract_Jelly)
+nlcd_extract_Jelly[which(!is.na(nlcd_extract_Jelly))]
+
+#check to make sure the have the same # of columns and rows
+str(Suisun_nlcd_trans_Jelly)
+str(Jelly_dbbmm_UD)
+
+# test to make sure it works - it does (Jelly square represents the nlcd raster layer)
+plot(Jelly_dbbmm_UD)
+library(scales)
+plot(nlcd_utm_Jelly, col = alpha("Red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final_Jelly <- cbind.data.frame(Jelly.dbbmm.df, nlcd_extract_Jelly)
+head(final_Jelly)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final_Jelly <- final_Jelly[which(!is.na(final_Jelly[,4])),]
+head(final_Jelly)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final_Jelly[,4])))
+unique.vec <- unique(final_Jelly[,4])
+tot.prob <- sum(final_Jelly[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final_Jelly[which(final_Jelly[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Jelly_landcover_probs_final.csv")
+
+## Now let's do the above with the other females
+## NOHA 30.1 Bre
+
+library(move)
 Bre_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 30.1.csv")
+show(Bre_move)
+n.locs(Bre_move) # number of locations
+head(timeLag(Bre_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
+head(timestamps(Bre_move))
+summary(timeLag(Bre_move, units="mins"))
+Bre_lag <- timeLag(Bre_move, units="mins")
+write.csv(Bre_lag, file = "Bre_lag.csv")
 
+# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 31.5 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+
+Bre_bursted <- move::burst(Bre_move, c('normal','long')[1+(timeLag(Bre_move, units='mins')>31.5)])
+
+#plot Bre's locations
+#par(mfcol=1:2)
+plot(Bre_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
+
+#plot Bre's locations with ggmap over map layer just to see if it is geographically correct! - it is
+#install.packages("ggmap")
+library(ggmap)
+require(ggmap) #these packages are necessary to work with google maps
+#require(mapproj)
+Bre_df <- as(Bre_bursted, "data.frame")
+m <- get_map(bbox(extent(Bre_bursted)*1.1), source="stamen", zoom=12)
+ggmap(m)+geom_path(data=Bre_df, aes(x=location.long, y=location.lat))
+
+# transform coordinates from lat lon, center = T is requiBre for the dbbmm to operate properly according to Bart on the movebank help chat
+
+
+Bre_bursted_trans <- spTransform(x = Bre_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
+proj4string(Bre_bursted_trans)
+
+str(Bre_bursted)
+
+# bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
+
+nlcd_utm_Bre <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
+
+#current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
+str(nlcd_utm_Bre)
+str(Bre_bursted_trans)
+
+Suisun_nlcd_trans_Bre <- raster(nlcd_utm_Bre)
+crs(Suisun_nlcd_trans_Bre) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
+
+#now they match
+str(Bre_bursted_trans)
+str(Suisun_nlcd_trans_Bre)
+
+Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Bre, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+
+## below are the UDs calculated from the dbbmm
+Bre_dbbmm_UD<-new(".UD",calc(Bre_dbbmm, sum)) ## it works!!!
+head(Bre_dbbmm_UD)
+str(Bre_dbbmm_UD)
+summary(Bre_dbbmm_UD)
+
+## get the UD raster layer?? 
+#Bre_ud <- UDStack(Bre_dbbmm)
+#summary(Bre_ud)
+
+#now plot the UD on the left and the actual movement path on the right
+#I can't figure out how to change the map area such that the map area is zoomed in, but whatever
+par(mfrow=c(1,2))
+plot(Bre_dbbmm_UD, xlab="longitude", ylab="latitude")
+#zoom(Bre_dbbmm_UD)
+plot(Bre_dbbmm_UD, xlab="longitude", ylab="latitude")
+lines(Bre_bursted_trans, center=TRUE, col=3, lwd=2)
+#plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
+#points(spTransform(mama_bursted, center=TRUE), col=8)
+
+# this plots the 50% and 95% UD contour lines around the UDs
+plot(Bre_dbbmm_UD, xlab="location_long", ylab="location_lat")
+contour(Bre_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+
+#get the area of the 95% UD - i think these areas are in meters
+Bre_cont95 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont95 <- Bre_cont95<=.95
+area95 <- sum(values(Bre_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Bre_cont5 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont5 <- Bre_cont5<=.5
+area5 <- sum(values(Bre_cont5))
+area5
+
+## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
+
+#dbbmm dataframe- keep this!
+Bre.dbbmm.df <- as.data.frame(Bre_dbbmm_UD, xy = TRUE)
+Bre_ud_raster <- rasterFromXYZ(Bre.dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
+
+## write raster - this is returning an empty raster and we don't know why
+#writeRaster(Bre_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+#writeRaster(Bre_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+#writeRaster(Bre_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/lauren_ud_raster3.tif", overwrite = TRUE)
+
+writeRaster(Bre_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Bre_ud_raster.tif", overwrite = TRUE)
+
+#but it does create the raster appropriately and plots below (weird)
+plot(Bre_ud_raster)
+str(Bre_ud_raster) # and there are values within this new raster (extra weird)
+
+#save contours to shapefiles - this works
+
+#example from Bart on Movebank - it works
+#require(move)
+#example(brownian.bridge.dyn)
+#cont<-raster2contour(dbbmm, level=c(.5,.95))
+#writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
+
+## try with mama data - it works
+#require(move)
+#cont2 <-raster2contour(Bre_ud, level=c(.5,.95))
+#writeOGR(cont2, dsn = '.', layer = 'Bre_contour2', driver = "ESRI Shapefile")
+
+#works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
+#require(move)
+cont_Bre <-raster2contour(Bre_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_Bre, dsn = '.', layer = 'Bre_contour', driver = "ESRI Shapefile")
+
+#getwd()
+#ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
+#mama_WGS <- spTransform(cont3, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")) 
+#writeOGR(cont3, dsn = "mama_contours.kml", layer = "mama_WGS", driver = "KML", overwrite_layer = TRUE)
+
+#using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp_Bre <- SpatialPoints(Bre.dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans_Bre))
+nlcd_extract_Bre <- extract(nlcd_utm_Bre, nlcd_sp_Bre)
+head(nlcd_extract_Bre)
+nlcd_extract_Bre[which(!is.na(nlcd_extract_Bre))]
+
+#check to make sure the have the same # of columns and rows
+str(Suisun_nlcd_trans_Bre)
+str(Bre_dbbmm_UD)
+
+# test to make sure it works - it does (Bre square represents the nlcd raster layer)
+plot(Bre_dbbmm_UD)
+contour(Bre_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+library(scales)
+plot(nlcd_utm_Bre, col = alpha("Red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final_Bre <- cbind.data.frame(Bre.dbbmm.df, nlcd_extract_Bre)
+head(final_Bre)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final_Bre <- final_Bre[which(!is.na(final_Bre[,4])),]
+head(final_Bre)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final_Bre[,4])))
+unique.vec <- unique(final_Bre[,4])
+tot.prob <- sum(final_Bre[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final_Bre[which(final_Bre[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Bre_landcover_probs_final.csv")
+
+## need to make a new polygon because dBBMM for Bre is outside of the current polygon nlcd_utm
+
+library(FedData)
+
+suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4233434, 4212972), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
+
+
+suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4233434, 4212972), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
+
+
+
+plot(suisun_polygon_new)
+
+##download the NLCD raster and clip to the Suisun polygon (note: can only download 2011 with this function, not 2016)
+
+Suisun_NLCD_new <- get_nlcd(template = suisun_polygon_new, label = 'suisun',  year = 2011, dataset = "landcover")
+
+plot(Suisun_NLCD_new)
+
+
+#Suisun_NLCD_new <- spTransform(Suisun_NLCD,CRSobj = suisun_polygon)
+
+# transform NLCD raster to same projection as the move object above
+
+#current projection - this is not working
+Suisun_nlcd_trans_Bre2 <- raster(Suisun_NLCD_new)
+crs(Suisun_nlcd_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 "
+str(Suisun_nlcd_trans_Bre2)
+str(Bre_bursted_trans)
+
+#Suisun_NLCD_trans <- raster(suisun_polygon)
+#crs(Suisun_NLCD_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666"
+#proj4string(Suisun_NLCD_trans)
+#plot(Suisun_NLCD_trans)
+#crs(Suisun_NLCD)
+#transformed projection
