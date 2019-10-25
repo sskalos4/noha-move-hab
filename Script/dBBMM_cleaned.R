@@ -14,9 +14,10 @@ suisun_polygon <- polygon_from_extent(raster::extent(578701, 601868, 4215762, 42
 
 ##download the NLCD raster and clip to the Suisun polygon (note: can only download 2011 with this function, not 2016)
 
-Suisun_NLCD <- get_nlcd(template = suisun_polygon, label = 'suisun',  year = 2011, dataset = "landcover")
+Suisun_NLCD <- get_nlcd(template = suisun_polygon, label = 'suisun5',  year = 2011, dataset = "landcover")
 
 plot(Suisun_NLCD)
+summary(Suisun_NLCD)
 #View(Suisun_NLCD)
 #print(Suisun_NLCD)
 
@@ -26,12 +27,12 @@ install.packages("move")
 library(move)
 
 #bring in file from Movebank
-mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv")
+mama_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 02.csv") 
 #mama_move <- move(x = "C:/Users/sskalos/Documents/noha-move-hab/Data/SIMP 02.csv")
-show(mama_move)
-n.locs(mama_move) # number of locations
-head(timeLag(mama_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
-head(timestamps(mama_move))
+show(mama_move) 
+n.locs(mama_move)  # number of locations
+head(timeLag(mama_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences 
+head(timestamps(mama_move)) 
 
 # burst the movestack object to exclude any loactions that are greater than 72 minutes apart (because a couple locations are 72 and not 60 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
 
@@ -72,7 +73,7 @@ nlcd_utm <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
 plot(nlcd_utm)
 str(nlcd_utm)
 as.data.frame(nlcd_utm, xy = TRUE)
-
+summary(nlcd_utm)
 #current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
 
 Suisun_nlcd_trans <- raster(nlcd_utm)
@@ -1007,6 +1008,7 @@ str(Red_bursted)
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
 nlcd_utm_Red <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+proj4string(nlcd_utm_Red)
 #plot(nlcd_utm)
 #str(nlcd_utm)
 #as.data.frame(nlcd_utm, xy = TRUE)
@@ -1016,7 +1018,7 @@ str(nlcd_utm_Red)
 str(Red_bursted_trans)
 
 Suisun_nlcd_trans_Red <- raster(nlcd_utm_Red)
-crs(Suisun_nlcd_trans_Red) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
+proj4string(Suisun_nlcd_trans_Red) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
 
 #now they match
 str(Red_bursted_trans)
@@ -1713,11 +1715,11 @@ ggmap(m)+geom_path(data=Bre_df, aes(x=location.long, y=location.lat))
 
 # transform coordinates from lat lon, center = T is requiBre for the dbbmm to operate properly according to Bart on the movebank help chat
 
-
+str(Bre_bursted)
 Bre_bursted_trans <- spTransform(x = Bre_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
 proj4string(Bre_bursted_trans)
 
-str(Bre_bursted)
+
 
 # bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
 
@@ -1735,19 +1737,14 @@ Suisun_nlcd_trans_Bre <- raster(nlcd_utm_Bre)
 crs(Suisun_nlcd_trans_Bre) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
 
 #now they match
-crs(Bre_bursted_trans)
+str(Bre_bursted_trans)
 str(Suisun_nlcd_trans_Bre)
-crs(nlcd_new)
-summary(nlcd_new)
+crs(nlcd_utm_Bre)
 
-plot(nlcd_new)
 plot(Bre_bursted_trans, add = TRUE)
 plot(nlcd_utm_Bre)
 
-nlcd_new@data
-nlcd_utm_Bre@data
-
-Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = nlcd_tm_Bre, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Bre, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
 
 ## below are the UDs calculated from the dbbmm
 Bre_dbbmm_UD<-new(".UD",calc(Bre_dbbmm, sum)) ## it works!!!
@@ -1873,10 +1870,10 @@ write.csv(probs.cover.tables, file = "Bre_landcover_probs_final.csv")
 
 library(FedData)
 
-#suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
+suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string='+proj=utm +datum=WGS84 +zone=10 +ellps=WGS84')
 
 
-suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
+#suisun_polygon_new <- polygon_from_extent(raster::extent(573476, 609771, 4212972, 4233434), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
 
 #test
 #sac_polygon_new <- polygon_from_extent(raster::extent(604115, 633352, 4268919, 4283557), proj4string="+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 ")
@@ -1885,22 +1882,28 @@ plot(suisun_polygon_new)
 
 ##download the NLCD raster and clip to the Suisun polygon (note: can only download 2011 with this function, not 2016)
 
-Suisun_NLCD_new <- get_nlcd(template = suisun_polygon_new, label = 'suisun2',  year = 2011, dataset = "landcover")
+Suisun_NLCD_new <- get_nlcd(template = suisun_polygon_new, label = 'suisun4',  year = 2011, dataset = "landcover")
+summary(Suisun_NLCD_new)
+str(Suisun_NLCD_new)
+
+proj4string(Suisun_NLCD_new)
+proj4string(suisun_polygon_new)
+proj4string(nlcd_utm)
+proj4string(Bre_bursted_trans)
 
 #Sac_NLCD_new <- get_nlcd(template = sac_polygon_new, label = 'sac',  year = 2011, dataset = "landcover")
-
-plot(Suisun_NLCD_new)
-str(Suisun_NLCD_new)
-str(suisun_polygon_new)
 
 library(sf)
 library(raster)
 r <- raster(suisun_polygon_new)
-r <- setValues(r, 1:ncell(r))
+#r <- setValues(r, 1:ncell(r))
 newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575"
 #nlcd_new <- st_transform(Suisun_NLCD_new, crs = the_crs)
 nlcd_new <- projectRaster(Suisun_NLCD_new, crs = newproj)
+proj4string(nlcd_new)
+proj4string(Bre_bursted_trans)
 str(nlcd_new)
+str(Bre_bursted_trans)
 
 #Suisun_NLCD_new <- spTransform(Suisun_NLCD,CRSobj = suisun_polygon)
 
@@ -1911,10 +1914,57 @@ Suisun_nlcd_trans_Bre2 <- raster(Suisun_NLCD_new)
 crs(Suisun_nlcd_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666 "
 str(Suisun_nlcd_trans_Bre2)
 str(Bre_bursted_trans)
+plot(nlcd_new)
 
-#Suisun_NLCD_trans <- raster(suisun_polygon)
-#crs(Suisun_NLCD_trans) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.910674 +lat_0=38.115666"
-#proj4string(Suisun_NLCD_trans)
-#plot(Suisun_NLCD_trans)
-#crs(Suisun_NLCD)
-#transformed projection
+Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = nlcd_new, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 13) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate breakpoints with a leave-one-out approach, and window size is 13 (must be odd) because this is equivalent to 14 locations, which equals ~ 7 hours (30 min locations) and may be able to detect behavioral changes within this relatively short window.
+
+## below are the UDs calculated from the dbbmm
+Bre_dbbmm_UD<-new(".UD",calc(Bre_dbbmm, sum)) ## it works!!!
+head(Bre_dbbmm_UD)
+str(Bre_dbbmm_UD)
+summary(Bre_dbbmm_UD)
+
+#dbbmm dataframe- keep this!
+Bre.dbbmm.df <- as.data.frame(Bre_dbbmm_UD, xy = TRUE)
+
+#using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp_Bre <- SpatialPoints(Bre.dbbmm.df[,1:2], proj4string = crs(nlcd_new))
+nlcd_extract_Bre <- extract(Suisun_NLCD_new, nlcd_sp_Bre)
+head(nlcd_extract_Bre)
+nlcd_extract_Bre[which(!is.na(nlcd_extract_Bre))]
+
+#check to make sure the have the same # of columns and rows
+str(nlcd_new)
+str(Bre_dbbmm_UD)
+
+# test to make sure it works - it does (Bre square represents the nlcd raster layer)
+plot(Bre_dbbmm_UD)
+contour(Bre_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+library(scales)
+plot(nlcd_new, col = alpha("Red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final_Bre2 <- cbind.data.frame(Bre.dbbmm.df, nlcd_extract_Bre)
+head(final_Bre2)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final_Bre2 <- final_Bre2[which(!is.na(final_Bre2[,4])),]
+head(final_Bre2)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final_Bre2[,4])))
+unique.vec <- unique(final_Bre2[,4])
+tot.prob <- sum(final_Bre2[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final_Bre2[which(final_Bre2[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Bre_landcover_probs_final2.csv")
