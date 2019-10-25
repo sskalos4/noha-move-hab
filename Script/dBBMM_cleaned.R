@@ -1148,13 +1148,11 @@ write.csv(probs.cover.tables, file = "Red_landcover_probs_final.csv")
 
 library(move)
 
-### NEED TO MARK OUTLIERS IN MOVEBANK FIRST
+### Ok now let's calculate dBBMM for NOHA 628
 
-#Salty_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv")
+#getDuplicatedTimestamps(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv")
 
-df <- read.csv(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv")
-
-Salty_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv", df$location.long, df$location.lat, time=as.POSIXct(df$timestamp,format="%m/%d/%Y %H:%M"))
+Salty_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv")
 
 show(Salty_move)
 n.locs(Salty_move) # number of locations
@@ -1164,9 +1162,9 @@ summary(timeLag(Salty_move, units="mins"))
 Salty_lag <- timeLag(Salty_move, units="mins")
 write.csv(Salty_lag, file = "Salty_lag.csv")
 
-# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 32.3 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 31.4 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
 
-Salty_bursted <- move::burst(Salty_move, c('normal','long')[1+(timeLag(Salty_move, units='mins')>32.3)])
+Salty_bursted <- move::burst(Salty_move, c('normal','long')[1+(timeLag(Salty_move, units='mins')>31.4)])
 
 #plot Salty's locations
 #par(mfcol=1:2)
@@ -1300,7 +1298,7 @@ str(Salty_dbbmm_UD)
 # test to make sure it works - it does (Salty square represents the nlcd raster layer)
 plot(Salty_dbbmm_UD)
 library(scales)
-plot(nlcd_utm_Salty, col = alpha("Salty", .5), add = TRUE)
+plot(nlcd_utm_Salty, col = alpha("Red", .5), add = TRUE)
 
 # combine the raster cell probabilities with their coord pairs with landcover grid cells
 final_Salty <- cbind.data.frame(Salty.dbbmm.df, nlcd_extract_Salty)
@@ -1327,3 +1325,11 @@ probs.cover.tables <- cbind(prob.vec, unique.vec)
 #view the entire table
 probs.cover.tables
 write.csv(probs.cover.tables, file = "Salty_landcover_probs_final.csv")
+
+
+Marlana_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 629.csv")
+
+Jelly_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 630.csv")
+
+Bre_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 30.1.csv")
+
