@@ -848,9 +848,9 @@ head(Meg_dbbmm_UD)
 str(Meg_dbbmm_UD)
 summary(Meg_dbbmm_UD)
 
-## get the UD raster layer??
-Meg_ud <- UDStack(Meg_dbbmm)
-summary(Meg_ud)
+## get the UD raster layer?? 
+#Meg_ud <- UDStack(Meg_dbbmm)
+#summary(Meg_ud)
 
 #now plot the UD on the left and the actual movement path on the right
 #I can't figure out how to change the map area such that the map area is zoomed in, but whatever
@@ -922,7 +922,7 @@ writeOGR(cont_Meg, dsn = '.', layer = 'Meg_contour', driver = "ESRI Shapefile")
 
 #using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
 nlcd_sp_Meg <- SpatialPoints(Meg.dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans_Meg))
-nlcd_extract_Meg <- extract(nlcd_utm, nlcd_sp_Meg)
+nlcd_extract_Meg <- extract(nlcd_utm_Meg, nlcd_sp_Meg)
 head(nlcd_extract_Meg)
 nlcd_extract_Meg[which(!is.na(nlcd_extract_Meg))]
 
@@ -933,7 +933,7 @@ str(Meg_dbbmm_UD)
 # test to make sure it works - it does (red square represents the nlcd raster layer)
 plot(Meg_dbbmm_UD)
 library(scales)
-plot(nlcd_utm, col = alpha("red", .5), add = TRUE)
+plot(nlcd_utm_Meg, col = alpha("red", .5), add = TRUE)
 
 # combine the raster cell probabilities with their coord pairs with landcover grid cells
 final_Meg <- cbind.data.frame(Meg.dbbmm.df, nlcd_extract_Meg)
@@ -960,4 +960,186 @@ probs.cover.tables <- cbind(prob.vec, unique.vec)
 #view the entire table
 probs.cover.tables
 write.csv(probs.cover.tables, file = "Meg_landcover_probs_final.csv")
+
+## Now let's do the above with the other females
+## NOHA 627 Red
+
+library(move)
+
+getDuplicatedTimestamps(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 627.csv")
+
+Red_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 627.csv")
+
+
+show(Red_move)
+n.locs(Red_move) # number of locations
+head(timeLag(Red_move, units="mins")) # time difference between locations - this is misleading because her first few days were set to two hour locations, but were then changd to 1 hour locations; make sure to look at ALL time differences
+head(timestamps(Red_move))
+summary(timeLag(Red_move, units="mins"))
+Red_lag <- timeLag(Red_move, units="mins")
+write.csv(Red_lag, file = "Red_lag.csv")
+
+# burst the movestack object to exclude any loactions that are greater than 32.3 minutes apart (because a several locations are 32.3 mins and not 30 mis) - this is to prevent calculations of bridges and motion variance overnight between the last location of the previous day and the first location of the next morning, which are typically 400+ mins
+
+Red_bursted <- move::burst(Red_move, c('normal','long')[1+(timeLag(Red_move, units='mins')>32.3)])
+
+#plot Red's locations
+#par(mfcol=1:2)
+plot(Red_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
+
+#plot Red's locations with ggmap over map layer just to see if it is geographically correct! - it is
+install.packages("ggmap")
+library(ggmap)
+require(ggmap) #these packages are necessary to work with google maps
+#require(mapproj)
+Red_df <- as(Red_bursted, "data.frame")
+m <- get_map(bbox(extent(Red_bursted)*1.1), source="stamen", zoom=12)
+ggmap(m)+geom_path(data=Red_df, aes(x=location.long, y=location.lat))
+
+# transform coordinates from lat lon, center = T is required for the dbbmm to operate properly according to Bart on the movebank help chat
+
+
+Red_bursted_trans <- spTransform(x = Red_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
+proj4string(Red_bursted_trans)
+
+str(Red_bursted)
+
+# bring in raster UTM with NAD 83 projection from ArcMAP because above code isn't working
+
+nlcd_utm_Red <- raster("~/Desktop/R_Forever/RRF/Data/Raster_UTM/NLCD_UTM.tif")
+#plot(nlcd_utm)
+#str(nlcd_utm)
+#as.data.frame(nlcd_utm, xy = TRUE)
+
+#current projection - this is not working - something happens in this proejction transformation and the landcover values are lost for some reason.
+str(nlcd_utm_Red)
+str(Red_bursted_trans)
+
+Suisun_nlcd_trans_Red <- raster(nlcd_utm_Red)
+crs(Suisun_nlcd_trans_Red) <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575 "
+
+#now they match
+str(Red_bursted_trans)
+str(Suisun_nlcd_trans_Red)
+
+Red_dbbmm <- brownian.bridge.dyn(Red_bursted_trans, burstType = 'normal', raster = Suisun_nlcd_trans_Red, location.error = 10, ext = .3, time.step = 30, margin = 3, window.size = 7) #location error is 10 m as per the transmitter specifications, extent is 30% of raster extent, time step is 30 mins becasue locations were approximately every hour, margin is 3 which is the minimum number of locations needed to calculate Redakpoints a a leave-one-out approach, and window size is 7 because this is equivalent to 7 locations, which equals  7 hours and may be able to detect behavioral changes within this relatively short window.
+
+## below are the UDs calculated from the dbbmm
+Red_dbbmm_UD<-new(".UD",calc(Red_dbbmm, sum)) ## it works!!!
+head(Red_dbbmm_UD)
+str(Red_dbbmm_UD)
+summary(Red_dbbmm_UD)
+
+## get the UD raster layer?? 
+#Red_ud <- UDStack(Red_dbbmm)
+#summary(Red_ud)
+
+#now plot the UD on the left and the actual movement path on the right
+#I can't figure out how to change the map area such that the map area is zoomed in, but whatever
+par(mfrow=c(1,2))
+plot(Red_dbbmm_UD, xlab="longitude", ylab="latitude")
+#zoom(Red_dbbmm_UD)
+plot(Red_dbbmm_UD, xlab="longitude", ylab="latitude")
+lines(Red_bursted_trans, center=TRUE, col=3, lwd=2)
+#plot(mama_dbbmm, xlab="location_long", ylab="location_lat")
+#points(spTransform(mama_bursted, center=TRUE), col=8)
+
+# this plots the 50% and 95% UD contour lines around the UDs
+plot(Red_dbbmm_UD, xlab="location_long", ylab="location_lat")
+contour(Red_dbbmm_UD, levels=c(.5, .95), col=c(6,2), add=TRUE, lwd=2)
+
+#get the area of the 95% UD - i think these areas are in meters
+Red_cont95 <- getVolumeUD(Red_dbbmm_UD)
+Red_cont95 <- Red_cont95<=.95
+area95 <- sum(values(Red_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Red_cont5 <- getVolumeUD(Red_dbbmm_UD)
+Red_cont5 <- Red_cont5<=.5
+area5 <- sum(values(Red_cont5))
+area5
+
+## Ok, now let's follow Brian's steps and convert the DBBMM object to a SpatialLineDataFrame
+
+#dbbmm dataframe- keep this!
+Red.dbbmm.df <- as.data.frame(Red_dbbmm_UD, xy = TRUE)
+Red_ud_raster <- rasterFromXYZ(Red.dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
+
+## write raster - this is returning an empty raster and we don't know why
+#writeRaster(Red_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
+
+#writeRaster(Red_dbbmm, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster2.tif", overwrite = TRUE)
+
+#writeRaster(Red_ud, "C:/Users/sskalos/Documents/noha-move-hab/Output/lauren_ud_raster3.tif", overwrite = TRUE)
+
+writeRaster(Red_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Red_ud_raster.tif", overwrite = TRUE)
+
+#but it does create the raster appropriately and plots below (weird)
+plot(Red_ud_raster)
+str(Red_ud_raster) # and there are values within this new raster (extra weird)
+
+#save contours to shapefiles - this works
+
+#example from Bart on Movebank - it works
+#require(move)
+#example(brownian.bridge.dyn)
+#cont<-raster2contour(dbbmm, level=c(.5,.95))
+#writeOGR(cont, dsn = '.', layer = 'mycontLines', driver = "ESRI Shapefile")
+
+## try with mama data - it works
+require(move)
+#cont2 <-raster2contour(Red_ud, level=c(.5,.95))
+#writeOGR(cont2, dsn = '.', layer = 'Red_contour2', driver = "ESRI Shapefile")
+
+#works with either the mama_ud raster (above) or the mama_dbbmm_UD raster below, but below seems to be correct as it contains one layer, not every dbbmm step
+require(move)
+cont_Red <-raster2contour(Red_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_Red, dsn = '.', layer = 'Red_contour', driver = "ESRI Shapefile")
+
+#getwd()
+#ploygon <- readOGR(dsn = "/Users/Shannon/Desktop/R_Forever/Dissertation/noha-move-hab/Output" ,layer = "mama_contour3")
+#mama_WGS <- spTransform(cont3, CRS("+proj=longlat +ellps=WGS84 +datum=WGS84")) 
+#writeOGR(cont3, dsn = "mama_contours.kml", layer = "mama_WGS", driver = "KML", overwrite_layer = TRUE)
+
+#using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp_Red <- SpatialPoints(Red.dbbmm.df[,1:2], proj4string = crs(Suisun_nlcd_trans_Red))
+nlcd_extract_Red <- extract(nlcd_utm_Red, nlcd_sp_Red)
+head(nlcd_extract_Red)
+nlcd_extract_Red[which(!is.na(nlcd_extract_Red))]
+
+#check to make sure the have the same # of columns and rows
+str(Suisun_nlcd_trans_Red)
+str(Red_dbbmm_UD)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Red_dbbmm_UD)
+library(scales)
+plot(nlcd_utm_Red, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final_Red <- cbind.data.frame(Red.dbbmm.df, nlcd_extract_Red)
+head(final_Red)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final_Red <- final_Red[which(!is.na(final_Red[,4])),]
+head(final_Red)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final_Red[,4])))
+unique.vec <- unique(final_Red[,4])
+tot.prob <- sum(final_Red[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final_Red[which(final_Red[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Red_landcover_probs_final.csv")
 
