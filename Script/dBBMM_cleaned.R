@@ -1968,3 +1968,15 @@ probs.cover.tables <- cbind(prob.vec, unique.vec)
 #view the entire table
 probs.cover.tables
 write.csv(probs.cover.tables, file = "Bre_landcover_probs_final2.csv")
+
+#get the area of the 95% UD - i think these areas are in meters
+Bre_cont95 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont95 <- Bre_cont95<=.95
+area95 <- sum(values(Bre_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Bre_cont5 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont5 <- Bre_cont5<=.5
+area5 <- sum(values(Bre_cont5))
+area5
