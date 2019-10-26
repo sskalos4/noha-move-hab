@@ -74,6 +74,7 @@ cont_new <-raster2contour(mama_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont_new, dsn = '.', layer = 'mama_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
 
 #using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+library(sp)
 nlcd_sp <- SpatialPoints(dbbmm.df[,1:2], proj4string = crs(nlcd_new))
 nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
 head(nlcd_extract)
@@ -210,6 +211,103 @@ probs.cover.tables
 write.csv(probs.cover.tables, file = "laureen_landcover_probs_final_new.csv")
 
 
+## Joyce SIMP 7 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+joyce_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 07.csv") 
+joyce_bursted <- move::burst(joyce_move, c('normal','long')[1+(timeLag(joyce_move, units='mins')>88)])
+
+joyce_bursted_trans <- spTransform(x = joyce_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(joyce_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.003483 +lat_0=38.2062325"
+nlcd_new_joyce <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_joyce layer to match, too
+proj4string(nlcd_new_joyce)
+proj4string(joyce_bursted_trans)
+
+joyce_dbbmm <- brownian.bridge.dyn(joyce_bursted_trans, burstType = 'normal', raster = nlcd_new_joyce, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+joyce_dbbmm_UD<-new(".UD",calc(joyce_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+joyce_cont95 <- getVolumeUD(joyce_dbbmm_UD)
+joyce_cont95 <- joyce_cont95<=.95
+area95 <- sum(values(joyce_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+joyce_cont5 <- getVolumeUD(joyce_dbbmm_UD)
+joyce_cont5 <- joyce_cont5<=.5
+area5 <- sum(values(joyce_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+joyce.dbbmm.df <- as.data.frame(joyce_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(joyce_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/joyce_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(joyce_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'joyce_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+library(raster)
+library(sp)
+nlcd_sp <- SpatialPoints(joyce.dbbmm.df[,1:2], proj4string = crs(nlcd_new_joyce))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(joyce_dbbmm_UD)
+str(nlcd_new_joyce)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(joyce_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+joyce_final <- cbind.data.frame(joyce.dbbmm.df, nlcd_extract)
+head(joyce_final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+joyce_final <- joyce_final[which(!is.na(joyce_final[,4])),]
+head(joyce_final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec.joyce <- rep(NA, length(unique(joyce_final[,4])))
+unique.vec <- unique(joyce_final[,4])
+tot.prob <- sum(joyce_final[,3])
+for (i in 1:length(prob.vec.joyce)){
+  prob.vec.joyce[i] <- sum(joyce_final[which(joyce_final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec.joyce)
+
+#save the probability table for each landcover class - it works!
+probs.cover.table.joyce <- cbind(prob.vec.joyce, unique.vec)
+
+#view the entire table
+probs.cover.table.joyce
+write.csv(probs.cover.table.joyce, file = "joyce_landcover_probs_final_new.csv")
+
+
+
 
 ## example data for calculating cumulative raster values and rescaling to 1 - use this to sum all breedig female' UD values to calculate cumulative probability for each landcover class
 
@@ -245,9 +343,29 @@ head(laureen_final)
 combined <- rbind(mama_final, laureen_final)
 head(combined)
 
-#add the probability columns (layer) together for duplicate rows (x,y, and nlcd_extract)
-add.combine <-
 
+#add the probability columns (layer) together for duplicate rows (x,y, and nlcd_extract)
+#[,-2] means all columns except the first 2
+#add.combine <- aggregate(combined[,-2], list(layer=combined[,3]), FUN = sum)
+
+#let's try sing tidyverse
+library(tidyverse)
+library(dplyr)
+#add.combine <- inner_join(mama_final, laureen_final)
+str(mama_final)
+str(laureen_final)
+str(combined)
+
+combined %>%
+  group_by(x,y) %>%
+  summarise_all(sum) %>%
+  data.frame() -> new.combined # so that new.combined can further be used, if needed
+
+#alternative approach
+combined2 <- inner_join(mama_final, laureen_final, by = "x")
+
+newdf
+new.combined
 # for loop to calculate probabilities of use within each landcover types using the UDs
 prob.vec.1 <- rep(NA, length(unique(mama_final[,4])))
 unique.vec <- unique(mama_final[,4])
@@ -265,6 +383,7 @@ tot.prob <- sum(laureen_final[,3])
 for (i in 1:length(prob.vec.2)){
   prob.vec.2[i] <- sum(laureen_final[which(laureen_final[,4] == unique.vec[i]),3])/tot.prob
 }
+
 #check that the for loop worked and the probabilities sum to 1 - they do
 
 laureen_sum <- sum(prob.vec.2)
@@ -277,7 +396,7 @@ prob.vec.2
 vec.add <- prob.vec.1+prob.vec.2
 sum(vec.add)
 
-#rescale probabilities
+#rescale probabilities - these aren't working correctly and are normalizing the entire total to 1 such that when similar landcover class probabilities are combined, the sum of the probabilities is greater than 1. We want the cumulative probability across all 15 landcover classes to be 1, not each one scaled such that one equals 1 and all others are less than one - this results in a sum prob >1.
 
 #vec.add.scale <- (1/(prob.vec.1+prob.vec.2))
 #vec.cum <- (prob.vec.1*vec.add.scale)+(prob.vec.2*vec.add.scale)
@@ -288,7 +407,7 @@ sum(vec.add)
 #cum.prob <- scaled.cum.prob(vec.add)
 #sum(cum.prob)
 
-#save the probability table for each landcover class - it works!
+#save the probability table for each landcover class 
 probs.cover.tables.1 <- cbind(prob.vec.1, unique.vec)
 probs.cover.tables.2 <- cbind(prob.vec.2, unique.vec)
 probs.cover.tables.cum <- cbind(cum.prob, unique.vec)
