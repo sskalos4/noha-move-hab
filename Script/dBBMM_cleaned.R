@@ -1962,6 +1962,11 @@ for (i in 1:length(prob.vec)){
 #check that the for loop worked and the probabilities sum to 1 - they do
 sum(prob.vec)
 
+install.packages("sdmvspecies")
+library(sdmvspecies)
+prob.scale <- rescale(prob.vec, to = c(0,1), from = range(prob.vec, na.rm = TRUE))
+sum(prob.scale)
+
 #save the probability table for each landcover class - it works!
 probs.cover.tables <- cbind(prob.vec, unique.vec)
 
