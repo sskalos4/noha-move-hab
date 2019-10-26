@@ -216,7 +216,7 @@ library(move)
 
 #bring in file from Movebank
 joyce_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 07.csv") 
-joyce_bursted <- move::burst(joyce_move, c('normal','long')[1+(timeLag(joyce_move, units='mins')>88)])
+joyce_bursted <- move::burst(joyce_move, c('normal','long')[1+(timeLag(joyce_move, units='mins')>62)])
 
 joyce_bursted_trans <- spTransform(x = joyce_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
 
@@ -235,6 +235,7 @@ nlcd_new_joyce <- projectRaster(Suisun_NLCD_new, crs = newproj)
 #now they match, but still need the Suisun_nlcd_trans_joyce layer to match, too
 proj4string(nlcd_new_joyce)
 proj4string(joyce_bursted_trans)
+
 
 joyce_dbbmm <- brownian.bridge.dyn(joyce_bursted_trans, burstType = 'normal', raster = nlcd_new_joyce, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
 
@@ -264,8 +265,6 @@ cont_new <-raster2contour(joyce_dbbmm_UD, level=c(.5,.95))
 writeOGR(cont_new, dsn = '.', layer = 'joyce_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
 
 #using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
-library(raster)
-library(sp)
 nlcd_sp <- SpatialPoints(joyce.dbbmm.df[,1:2], proj4string = crs(nlcd_new_joyce))
 nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
 head(nlcd_extract)
@@ -281,32 +280,688 @@ library(scales)
 plot(nlcd_new, col = alpha("red", .5), add = TRUE)
 
 # combine the raster cell probabilities with their coord pairs with landcover grid cells
-joyce_final <- cbind.data.frame(joyce.dbbmm.df, nlcd_extract)
-head(joyce_final)
+final <- cbind.data.frame(joyce.dbbmm.df, nlcd_extract)
+head(final)
 
 #above works, but returns all columns, including empty grid cells with NA and 0 values
 # below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
-joyce_final <- joyce_final[which(!is.na(joyce_final[,4])),]
-head(joyce_final)
+final <- final[which(!is.na(final[,4])),]
+head(final)
 
 # for loop to calculate probabilities of use within each landcover types using the UDs
-prob.vec.joyce <- rep(NA, length(unique(joyce_final[,4])))
-unique.vec <- unique(joyce_final[,4])
-tot.prob <- sum(joyce_final[,3])
-for (i in 1:length(prob.vec.joyce)){
-  prob.vec.joyce[i] <- sum(joyce_final[which(joyce_final[,4] == unique.vec[i]),3])/tot.prob
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
 }
 #check that the for loop worked and the probabilities sum to 1 - they do
-sum(prob.vec.joyce)
+sum(prob.vec)
 
 #save the probability table for each landcover class - it works!
-probs.cover.table.joyce <- cbind(prob.vec.joyce, unique.vec)
+probs.cover.tables <- cbind(prob.vec, unique.vec)
 
 #view the entire table
-probs.cover.table.joyce
-write.csv(probs.cover.table.joyce, file = "joyce_landcover_probs_final_new.csv")
+probs.cover.tables
+write.csv(probs.cover.tables, file = "joyce_landcover_probs_final_new.csv")
+
+## Cinnamon SIMP 10 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+cinnamon_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/SIMP 10.csv") 
+cinnamon_bursted <- move::burst(cinnamon_move, c('normal','long')[1+(timeLag(cinnamon_move, units='mins')>74)])
+
+cinnamon_bursted_trans <- spTransform(x = cinnamon_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(cinnamon_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.872816 +lat_0=38.1182245"
+nlcd_new_cinnamon <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_cinnamon layer to match, too
+proj4string(nlcd_new_cinnamon)
+proj4string(cinnamon_bursted_trans)
 
 
+cinnamon_dbbmm <- brownian.bridge.dyn(cinnamon_bursted_trans, burstType = 'normal', raster = nlcd_new_cinnamon, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+cinnamon_dbbmm_UD<-new(".UD",calc(cinnamon_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+cinnamon_cont95 <- getVolumeUD(cinnamon_dbbmm_UD)
+cinnamon_cont95 <- cinnamon_cont95<=.95
+area95 <- sum(values(cinnamon_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+cinnamon_cont5 <- getVolumeUD(cinnamon_dbbmm_UD)
+cinnamon_cont5 <- cinnamon_cont5<=.5
+area5 <- sum(values(cinnamon_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+cinnamon.dbbmm.df <- as.data.frame(cinnamon_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(cinnamon_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/cinnamon_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(cinnamon_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'cinnamon_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(cinnamon.dbbmm.df[,1:2], proj4string = crs(nlcd_new_cinnamon))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(cinnamon_dbbmm_UD)
+str(nlcd_new_cinnamon)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(cinnamon_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(cinnamon.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "cinnamon_landcover_probs_final_new.csv")
+
+## Megan NOHA 626 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+megan_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 626.csv") 
+megan_bursted <- move::burst(megan_move, c('normal','long')[1+(timeLag(megan_move, units='mins')>32.3)])
+
+megan_bursted_trans <- spTransform(x = megan_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(megan_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.970436096191 +lat_0=38.1442394256592"
+nlcd_new_megan <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_megan layer to match, too
+proj4string(nlcd_new_megan)
+proj4string(megan_bursted_trans)
+
+
+megan_dbbmm <- brownian.bridge.dyn(megan_bursted_trans, burstType = 'normal', raster = nlcd_new_megan, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+megan_dbbmm_UD<-new(".UD",calc(megan_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+megan_cont95 <- getVolumeUD(megan_dbbmm_UD)
+megan_cont95 <- megan_cont95<=.95
+area95 <- sum(values(megan_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+megan_cont5 <- getVolumeUD(megan_dbbmm_UD)
+megan_cont5 <- megan_cont5<=.5
+area5 <- sum(values(megan_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+megan.dbbmm.df <- as.data.frame(megan_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(megan_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/megan_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(megan_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'megan_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(megan.dbbmm.df[,1:2], proj4string = crs(nlcd_new_megan))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(megan_dbbmm_UD)
+str(nlcd_new_megan)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(megan_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(megan.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "megan_landcover_probs_final_new.csv")
+
+## Redhouse NOHA 627 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+Redhouse_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 627.csv") 
+Redhouse_bursted <- move::burst(Redhouse_move, c('normal','long')[1+(timeLag(Redhouse_move, units='mins')>31.4)])
+
+Redhouse_bursted_trans <- spTransform(x = Redhouse_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(Redhouse_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.944164276123 +lat_0=38.1145782470703"
+nlcd_new_Redhouse <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_Redhouse layer to match, too
+proj4string(nlcd_new_Redhouse)
+proj4string(Redhouse_bursted_trans)
+
+
+Redhouse_dbbmm <- brownian.bridge.dyn(Redhouse_bursted_trans, burstType = 'normal', raster = nlcd_new_Redhouse, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+Redhouse_dbbmm_UD<-new(".UD",calc(Redhouse_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+Redhouse_cont95 <- getVolumeUD(Redhouse_dbbmm_UD)
+Redhouse_cont95 <- Redhouse_cont95<=.95
+area95 <- sum(values(Redhouse_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Redhouse_cont5 <- getVolumeUD(Redhouse_dbbmm_UD)
+Redhouse_cont5 <- Redhouse_cont5<=.5
+area5 <- sum(values(Redhouse_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+Redhouse.dbbmm.df <- as.data.frame(Redhouse_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(Redhouse_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Redhouse_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(Redhouse_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'Redhouse_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(Redhouse.dbbmm.df[,1:2], proj4string = crs(nlcd_new_Redhouse))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(Redhouse_dbbmm_UD)
+str(nlcd_new_Redhouse)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Redhouse_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(Redhouse.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Redhouse_landcover_probs_final_new.csv")
+
+## Salty NOHA 628 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+Salty_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 628.csv") 
+Salty_bursted <- move::burst(Salty_move, c('normal','long')[1+(timeLag(Salty_move, units='mins')>31.4)])
+
+Salty_bursted_trans <- spTransform(x = Salty_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(Salty_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.990695953369 +lat_0=38.1896324157715"
+nlcd_new_Salty <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_Salty layer to match, too
+proj4string(nlcd_new_Salty)
+proj4string(Salty_bursted_trans)
+
+
+Salty_dbbmm <- brownian.bridge.dyn(Salty_bursted_trans, burstType = 'normal', raster = nlcd_new_Salty, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+Salty_dbbmm_UD<-new(".UD",calc(Salty_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+Salty_cont95 <- getVolumeUD(Salty_dbbmm_UD)
+Salty_cont95 <- Salty_cont95<=.95
+area95 <- sum(values(Salty_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Salty_cont5 <- getVolumeUD(Salty_dbbmm_UD)
+Salty_cont5 <- Salty_cont5<=.5
+area5 <- sum(values(Salty_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+Salty.dbbmm.df <- as.data.frame(Salty_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(Salty_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Salty_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(Salty_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'Salty_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(Salty.dbbmm.df[,1:2], proj4string = crs(nlcd_new_Salty))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(Salty_dbbmm_UD)
+str(nlcd_new_Salty)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Salty_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(Salty.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Salty_landcover_probs_final_new.csv")
+
+## Marlana NOHA 629 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+Marlana_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 629.csv") 
+Marlana_bursted <- move::burst(Marlana_move, c('normal','long')[1+(timeLag(Marlana_move, units='mins')>31.5)])
+
+Marlana_bursted_trans <- spTransform(x = Marlana_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(Marlana_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.940395355225 +lat_0=38.1387825012207"
+nlcd_new_Marlana <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_Marlana layer to match, too
+proj4string(nlcd_new_Marlana)
+proj4string(Marlana_bursted_trans)
+
+
+Marlana_dbbmm <- brownian.bridge.dyn(Marlana_bursted_trans, burstType = 'normal', raster = nlcd_new_Marlana, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+Marlana_dbbmm_UD<-new(".UD",calc(Marlana_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+Marlana_cont95 <- getVolumeUD(Marlana_dbbmm_UD)
+Marlana_cont95 <- Marlana_cont95<=.95
+area95 <- sum(values(Marlana_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Marlana_cont5 <- getVolumeUD(Marlana_dbbmm_UD)
+Marlana_cont5 <- Marlana_cont5<=.5
+area5 <- sum(values(Marlana_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+Marlana.dbbmm.df <- as.data.frame(Marlana_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(Marlana_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Marlana_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(Marlana_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'Marlana_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(Marlana.dbbmm.df[,1:2], proj4string = crs(nlcd_new_Marlana))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(Marlana_dbbmm_UD)
+str(nlcd_new_Marlana)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Marlana_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(Marlana.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Marlana_landcover_probs_final_new.csv")
+
+## Jelly NOHA 630 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+Jelly_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 630.csv") 
+Jelly_bursted <- move::burst(Jelly_move, c('normal','long')[1+(timeLag(Jelly_move, units='mins')>35)])
+
+Jelly_bursted_trans <- spTransform(x = Jelly_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(Jelly_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.000186920166 +lat_0=38.1836967468262"
+nlcd_new_Jelly <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_Jelly layer to match, too
+proj4string(nlcd_new_Jelly)
+proj4string(Jelly_bursted_trans)
+
+
+Jelly_dbbmm <- brownian.bridge.dyn(Jelly_bursted_trans, burstType = 'normal', raster = nlcd_new_Jelly, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+Jelly_dbbmm_UD<-new(".UD",calc(Jelly_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+Jelly_cont95 <- getVolumeUD(Jelly_dbbmm_UD)
+Jelly_cont95 <- Jelly_cont95<=.95
+area95 <- sum(values(Jelly_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Jelly_cont5 <- getVolumeUD(Jelly_dbbmm_UD)
+Jelly_cont5 <- Jelly_cont5<=.5
+area5 <- sum(values(Jelly_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+Jelly.dbbmm.df <- as.data.frame(Jelly_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(Jelly_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Jelly_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(Jelly_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'Jelly_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(Jelly.dbbmm.df[,1:2], proj4string = crs(nlcd_new_Jelly))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(Jelly_dbbmm_UD)
+str(nlcd_new_Jelly)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Jelly_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(Jelly.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Jelly_landcover_probs_final_new.csv")
+
+## Bre NOHA 30.1 with new suisun raster
+library(move)
+
+#bring in file from Movebank
+Bre_move <- move(x = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/NOHA 30.1.csv") 
+Bre_bursted <- move::burst(Bre_move, c('normal','long')[1+(timeLag(Bre_move, units='mins')>31.5)])
+
+Bre_bursted_trans <- spTransform(x = Bre_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m', center = T)
+
+proj4string(Suisun_NLCD_new) #this raster is incorrect
+proj4string(suisun_polygon_new) # this polygon is incorrect
+proj4string(Bre_bursted_trans) # need all layers to match this projection
+
+#matching projections below
+library(sf)
+library(raster)
+r <- raster(suisun_polygon_new)
+#r <- setValues(r, 1:ncell(r))
+newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-121.889591217041 +lat_0=38.088960647583"
+nlcd_new_Bre <- projectRaster(Suisun_NLCD_new, crs = newproj)
+
+#now they match, but still need the Suisun_nlcd_trans_Bre layer to match, too
+proj4string(nlcd_new_Bre)
+proj4string(Bre_bursted_trans)
+
+
+Bre_dbbmm <- brownian.bridge.dyn(Bre_bursted_trans, burstType = 'normal', raster = nlcd_new_Bre, location.error = 10, ext = .3, time.step = 60, margin = 3, window.size = 7) 
+
+## below are the UDs calculated from the dbbmm
+Bre_dbbmm_UD<-new(".UD",calc(Bre_dbbmm, sum)) ## it works!!!
+
+#get the area of the 95% UD - i think these areas are in meters
+Bre_cont95 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont95 <- Bre_cont95<=.95
+area95 <- sum(values(Bre_cont95))
+area95
+
+#get the area of the 50% UD - i think these areas are in meters
+Bre_cont5 <- getVolumeUD(Bre_dbbmm_UD)
+Bre_cont5 <- Bre_cont5<=.5
+area5 <- sum(values(Bre_cont5))
+area5
+
+#dbbmm dataframe- keep this!
+Bre.dbbmm.df <- as.data.frame(Bre_dbbmm_UD, xy = TRUE)
+
+#save UD raster
+writeRaster(Bre_dbbmm_UD, "~/Desktop/R_Forever/Dissertation/noha-move-hab/Output/Bre_ud_raster_new.tif", overwrite = TRUE)
+
+#save contours
+cont_new <-raster2contour(Bre_dbbmm_UD, level=c(.5,.95))
+writeOGR(cont_new, dsn = '.', layer = 'Bre_contour_new', driver = "ESRI Shapefile", overwrite_layer =  TRUE)
+
+#using the nlcd_new raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
+nlcd_sp <- SpatialPoints(Bre.dbbmm.df[,1:2], proj4string = crs(nlcd_new_Bre))
+nlcd_extract <- extract(Suisun_NLCD_new, nlcd_sp)
+head(nlcd_extract)
+nlcd_extract[which(!is.na(nlcd_extract))]
+
+#check that the columns and rows match - they do
+str(Bre_dbbmm_UD)
+str(nlcd_new_Bre)
+
+# test to make sure it works - it does (red square represents the nlcd raster layer)
+plot(Bre_dbbmm_UD)
+library(scales)
+plot(nlcd_new, col = alpha("red", .5), add = TRUE)
+
+# combine the raster cell probabilities with their coord pairs with landcover grid cells
+final <- cbind.data.frame(Bre.dbbmm.df, nlcd_extract)
+head(final)
+
+#above works, but returns all columns, including empty grid cells with NA and 0 values
+# below code removes NA in the 4th column (the landcover column) and returns only columns with landcover values 
+final <- final[which(!is.na(final[,4])),]
+head(final)
+
+# for loop to calculate probabilities of use within each landcover types using the UDs
+prob.vec <- rep(NA, length(unique(final[,4])))
+unique.vec <- unique(final[,4])
+tot.prob <- sum(final[,3])
+for (i in 1:length(prob.vec)){
+  prob.vec[i] <- sum(final[which(final[,4] == unique.vec[i]),3])/tot.prob
+}
+#check that the for loop worked and the probabilities sum to 1 - they do
+sum(prob.vec)
+
+#save the probability table for each landcover class - it works!
+probs.cover.tables <- cbind(prob.vec, unique.vec)
+
+#view the entire table
+probs.cover.tables
+write.csv(probs.cover.tables, file = "Bre_landcover_probs_final_new.csv")
 
 
 ## example data for calculating cumulative raster values and rescaling to 1 - use this to sum all breedig female' UD values to calculate cumulative probability for each landcover class
