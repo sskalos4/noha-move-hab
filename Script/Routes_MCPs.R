@@ -126,12 +126,18 @@ plot(noha23.df, add = TRUE)
 
 mcp.area(noha23.df, percent = 100, unin = "m", unout = "km2")
 
-library(maptools)
-writePolyShape(noha23.mcp, "NOHA 23 MCP")
-writePolyShape(noha22.mcp, "NOHA 22 MCP")
-writePolyShape(noha36.mcp, "NOHA 36 MCP")
-writePolyShape(noha40.mcp, "NOHA 40 MCP")
-writePolyShape(noha41.mcp, "NOHA 41 MCP")
-writePolyShape(noha61.mcp, "NOHA 61 MCP")
-writePolyShape(noha65.mcp, "NOHA 65 MCP")
 
+library(rgdal)
+writeOGR(noha22.mcp, dsn = ".", layer = "NOHA 22 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha23.mcp, dsn = ".", layer = "NOHA 23 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha40.mcp, dsn = ".", layer = "NOHA 40 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha41.mcp, dsn = ".", layer = "NOHA 41 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha36.mcp, dsn = ".", layer = "NOHA 36 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha61.mcp, dsn = ".", layer = "NOHA 61 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha65.mcp, dsn = ".", layer = "NOHA 65 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
