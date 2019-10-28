@@ -51,7 +51,7 @@ mama_dbbmm <- brownian.bridge.dyn(mama_bursted_trans, burstType = 'normal', rast
 ## below are the UDs calculated from the dbbmm
 mama_dbbmm_UD<-new(".UD",calc(mama_dbbmm, sum)) ## it works!!!
 
-#get the area of the 95% UD - i think these areas are in meters
+#get the area of the 95% UD - i think these areas are in meters?? NO these are the number of cells
 mama_cont95 <- getVolumeUD(mama_dbbmm_UD)
 mama_cont95 <- mama_cont95<=.95
 area95 <- sum(values(mama_cont95))
