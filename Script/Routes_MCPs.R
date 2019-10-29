@@ -26,7 +26,7 @@ TrajLength(trj29)
 TrajKm29 <-(TrajLength(trj29))/1000
 TrajKm29
 
-## MCPs for 2018 females
+## MCPs for 2018 migrant breeding females
 library(adehabitatHR)
 library(sp)
 
