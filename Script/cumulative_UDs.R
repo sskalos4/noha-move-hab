@@ -1070,3 +1070,257 @@ probs.cover.tables.cum <- cbind(cum.prob, unique.vec)
 #view the entire table
 probs.cover.tables.cum
 write.csv(probs.cover.tables.cum, file = "cumulative_landcover_probs_final.csv")
+
+
+##test for difference between 2018 and 2019 hab selection and home range sizes
+library(graphics)
+library(ggplot2)        # plotting & data
+library(dplyr)          # data manipulation
+library(tidyr)          # data re-shaping
+library(magrittr)       # pipe operator
+library(gridExtra)      # provides side-by-side plotting
+
+
+hr <- read.csv("~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/HRTest.csv")
+View(hr)
+
+df <- hr %>%
+  filter(Year == "2018" | Year == "2019") %>%
+  select(Year, hr.95)
+df
+
+summary(df %>% filter(Year == "2018") %>% .$hr.95)
+summary(df %>% filter(Year == "2019") %>% .$hr.95)
+
+p1 <- ggplot(hr, aes(hr.95)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(hr, aes(hr.95)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+hrtest.wilcox.95 <- wilcox.test(hr.95 ~ Year, data = df)
+
+
+#now let's test 50% core use area
+df2 <- hr %>%
+  filter(Year == "2018" | Year == "2019") %>%
+  select(Year, hr.50)
+df2
+df
+summary(df2 %>% filter(Year == "2018") %>% .$hr.50)
+summary(df2 %>% filter(Year == "2019") %>% .$hr.50)
+
+p1 <- ggplot(hr, aes(hr.50)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(hr, aes(hr.50)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+#hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+hrtest.wilcox.50 <- wilcox.test(hr.50 ~ Year, data = df2)
+#hrtest2 <- t.test(hr.50 ~ Year, data = df2)
+
+#now let's test wetland selection between years
+hs <- read.csv("~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/ProbLandcover.csv")
+View(hs)
+
+wetland.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Wetlands") %>%
+  select(Year, Landcover_Class, Probability)
+
+wetland.df
+
+summary(wetland.df %>% filter(Year == "2018") %>% .$Probability)
+summary(wetland.df %>% filter(Year == "2019") %>% .$Probability)
+
+p1 <- ggplot(wetland.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(wetland.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+#hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.wetland <- wilcox.test(Probability ~ Year, data = wetland.df)
+#hrtest2 <- t.test(hr.50 ~ Year, data = df2)
+
+#now let's test grassland selection between years
+
+grass.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Herbaceous") %>%
+  select(Year, Landcover_Class, Probability)
+
+grass.df
+
+summary(grass.df %>% filter(Year == "2018") %>% .$Probability)
+summary(grass.df %>% filter(Year == "2019") %>% .$Probability)
+
+p1 <- ggplot(grass.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(grass.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+#hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.grass <- wilcox.test(Probability ~ Year, data = grass.df)
+#hrtest2 <- t.test(hr.50 ~ Year, data = df2)
+
+#now let's test planted selection between years
+
+planted.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Planted/Cultivated") %>%
+  select(Year, Landcover_Class, Probability)
+
+planted.df
+
+summary(planted.df %>% filter(Year == "2018") %>% .$Probability)
+summary(planted.df %>% filter(Year == "2019") %>% .$Probability)
+
+p1 <- ggplot(planted.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(planted.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+#hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.planted <- wilcox.test(Probability ~ Year, data = planted.df)
+#hrtest2 <- t.test(hr.50 ~ Year, data = df2)
+
+#now let's test water selection between years
+
+water.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Water") %>%
+  select(Year, Landcover_Class, Probability)
+
+water.df
+
+summary(water.df %>% filter(Year == "2018") %>% .$Probability)
+summary(water.df %>% filter(Year == "2019") %>% .$Probability)
+
+p1 <- ggplot(water.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30")
+
+p2 <- ggplot(water.df, aes(Probability)) + 
+  geom_histogram(fill = "white", color = "grey30") +
+  scale_x_log10()
+
+grid.arrange(p1, p2, ncol = 2)
+
+#hrtest <- t.test(hr.95 ~ Year, data = df)
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.water <- wilcox.test(Probability ~ Year, data = water.df)
+#hrtest2 <- t.test(hr.50 ~ Year, data = df2)
+
+#now let's test developed selection between years
+
+developed.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Developed") %>%
+  select(Year, Landcover_Class, Probability)
+
+developed.df
+
+summary(developed.df %>% filter(Year == "2018") %>% .$Probability)
+summary(developed.df %>% filter(Year == "2019") %>% .$Probability)
+
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.developed <- wilcox.test(Probability ~ Year, data = developed.df)
+hrtest.wilcox.developed
+
+#now let's test forest selection between years
+
+forest.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Forest") %>%
+  select(Year, Landcover_Class, Probability)
+
+forest.df
+
+summary(forest.df %>% filter(Year == "2018") %>% .$Probability)
+summary(forest.df %>% filter(Year == "2019") %>% .$Probability)
+
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.forest <- wilcox.test(Probability ~ Year, data = forest.df)
+hrtest.wilcox.forest
+
+#now let's test barren selection between years
+
+barren.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Barren") %>%
+  select(Year, Landcover_Class, Probability)
+
+barren.df
+
+summary(barren.df %>% filter(Year == "2018") %>% .$Probability)
+summary(barren.df %>% filter(Year == "2019") %>% .$Probability)
+
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.barren <- wilcox.test(Probability ~ Year, data = barren.df)
+hrtest.wilcox.barren
+
+#now let's test shrubland selection between years
+
+shrubland.df <- hs %>%
+  filter(Year == "2018"| Year == "2019") %>%
+  filter(Landcover_Class == "Shrubland") %>%
+  select(Year, Landcover_Class, Probability)
+
+shrubland.df
+
+summary(shrubland.df %>% filter(Year == "2018") %>% .$Probability)
+summary(shrubland.df %>% filter(Year == "2019") %>% .$Probability)
+
+
+#these data are sparse and definitely not normal (many outliers) so I'm using a wilcoxon's test below
+
+hrtest.wilcox.shrubland <- wilcox.test(Probability ~ Year, data = shrubland.df)
+hrtest.wilcox.shrubland
+hrtest.wilcox.wetland
+hrtest.wilcox.water
+hrtest.wilcox.grass
+hrtest.wilcox.planted
+hrtest.wilcox.forest
+hrtest.wilcox.developed
+hrtest.wilcox.barren
+
