@@ -126,6 +126,36 @@ plot(noha23.df, add = TRUE)
 
 mcp.area(noha23.df, percent = 100, unin = "m", unout = "km2")
 
+## FOWL 37
+
+noha37.2018.df <- as.data.frame(read.csv(file = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/FOWL 37.2018.csv"))
+
+coordinates(noha37.2018.df) <- c("x", "y")
+proj4string(noha37.2018.df) <- CRS("+proj=utm +zone=4 +datum=WGS84 +units=m +no_defs")  ## for example
+head(noha37.2018.df)
+
+noha37.2018.mcp <-mcp(noha37.2018.df, percent = 100, unin = "m",unout = "km2")
+plot(noha37.2018.mcp)
+plot(noha37.2018.df, add = TRUE)
+
+mcp.area(noha37.2018.df, percent = 100, unin = "m", unout = "km2")
+
+
+## FOWL 37
+
+noha37.2019.df <- as.data.frame(read.csv(file = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/FOWL 37.2019.csv"))
+
+coordinates(noha37.2019.df) <- c("x", "y")
+proj4string(noha37.2019.df) <- CRS("+proj=utm +zone=4 +datum=WGS84 +units=m +no_defs")  ## for example
+head(noha37.2019.df)
+
+noha37.2019.mcp <-mcp(noha37.2019.df, percent = 100, unin = "m",unout = "km2")
+plot(noha37.2019.mcp)
+plot(noha37.2019.df, add = TRUE)
+
+mcp.area(noha37.2019.df, percent = 100, unin = "m", unout = "km2")
+
+
 
 library(rgdal)
 writeOGR(noha22.mcp, dsn = ".", layer = "NOHA 22 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
@@ -141,3 +171,7 @@ writeOGR(noha36.mcp, dsn = ".", layer = "NOHA 36 MCP", driver = "ESRI Shapefile"
 writeOGR(noha61.mcp, dsn = ".", layer = "NOHA 61 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
 
 writeOGR(noha65.mcp, dsn = ".", layer = "NOHA 65 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha37.2018.mcp, dsn = ".", layer = "NOHA 37 2018 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
+
+writeOGR(noha37.2019.mcp, dsn = ".", layer = "NOHA 37 2019 MCP", driver = "ESRI Shapefile", overwrite_layer = TRUE )
