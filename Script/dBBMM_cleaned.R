@@ -331,6 +331,8 @@ area5
 laureen.dbbmm.df <- as.data.frame(laureen_dbbmm_UD, xy = TRUE)
 laureen_ud_raster <- rasterFromXYZ(laureen.dbbmm.df, crs = "+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0", digits = 5 )
 
+head(laureen.dbbmm.df)
+
 ## write raster - this is returning an empty raster and we don't know why
 #writeRaster(laureen_ud_raster, "C:/Users/sskalos/Documents/noha-move-hab/Output/mama_ud_raster.tif", overwrite = TRUE)
 
