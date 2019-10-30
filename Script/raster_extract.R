@@ -65,6 +65,7 @@ proj4string(noha36.df)
 proj4string(mend_nlcd)
 
 plot(mend_nlcd)
+
 plot(noha36.mcp, add = TRUE)
 plot(noha36.df, add = TRUE)
 
@@ -74,8 +75,10 @@ plot(noha36.df, add = TRUE)
 #using the nlcd_utm raster lines up with the correct number of rows and columns from our dbbmm dataframe, and we can extract the landcover values (finally!)
 nlcd_sp_36 <- SpatialPoints(noha36.df, proj4string = crs(mend_nlcd))
 nlcd_extract_36 <- extract(mend_nlcd, nlcd_sp_36)
+#nlcd_extract_36.2 <- extract(mend_nlcd, noha36.df)
 head(nlcd_extract_36)
 nlcd_extract_36[which(!is.na(nlcd_extract_36))]
+
 
 # check to make sure they have the correct # of columns and rows
 str(mend_nlcd)
