@@ -96,3 +96,5 @@ write.csv(final_36, file = "nlcd.36.csv")
 #look at this thread for help
 #https://gis.stackexchange.com/questions/60527/how-to-extract-values-from-rasters-at-location-of-points-in-r
 
+#hakhf
+
