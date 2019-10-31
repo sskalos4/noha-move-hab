@@ -1893,11 +1893,32 @@ proj4string(suisun_polygon_new)
 proj4string(nlcd_utm)
 proj4string(Bre_bursted_trans)
 
+Bre_bursted <- move::burst(Bre_move, c('normal','long')[1+(timeLag(Bre_move, units='mins')>31.5)])
+
+#plot Bre's locations
+#par(mfcol=1:2)
+plot(Bre_bursted, type="o", col=3, lwd=2, pch=20, xlab="location_long",ylab="location_lat")
+
+#plot Bre's locations with ggmap over map layer just to see if it is geographically correct! - it is
+#install.packages("ggmap")
+library(ggmap)
+require(ggmap) #these packages are necessary to work with google maps
+#require(mapproj)
+Bre_df <- as(Bre_bursted, "data.frame")
+m <- get_map(bbox(extent(Bre_bursted)*1.1), source="stamen", zoom=12)
+ggmap(m)+geom_path(data=Bre_df, aes(x=location.long, y=location.lat))
+
+# transform coordinates from lat lon, center = T is requiBre for the dbbmm to operate properly according to Bart on the movebank help chat
+
+str(Bre_bursted)
+Bre_bursted_trans <- spTransform(x = Bre_bursted, CRSobj = '+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575', center = T)
+proj4string(Bre_bursted_trans)
+
 #Sac_NLCD_new <- get_nlcd(template = sac_polygon_new, label = 'sac',  year = 2011, dataset = "landcover")
 
 library(sf)
 library(raster)
-r <- raster(suisun_polygon_new)
+#r <- raster(suisun_polygon_new)
 #r <- setValues(r, 1:ncell(r))
 newproj <- "+proj=utm +zone=10 +datum=NAD83 +units=m +ellps=GRS80 +towgs84=0,0,0 +lon_0=-122.0374075 +lat_0=38.2021575"
 #nlcd_new <- st_transform(Suisun_NLCD_new, crs = the_crs)
@@ -1987,3 +2008,4 @@ Bre_cont5 <- getVolumeUD(Bre_dbbmm_UD)
 Bre_cont5 <- Bre_cont5<=.5
 area5 <- sum(values(Bre_cont5))
 area5
+
