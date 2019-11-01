@@ -36,8 +36,8 @@ pheasant$locs
 print(pheasant)
 str(pheasant)
 compana
-
-write.csv(hab.selc$rm)
+getwd()
+write.csv(hab.selc$rm, file = "mcp.hab.selc.rank.csv")
 
 ## Third order habitat selection
 ## (relocation within home range)
