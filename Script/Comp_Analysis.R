@@ -37,7 +37,7 @@ print(pheasant)
 str(pheasant)
 compana
 
-
+write.csv(hab.selc$rm)
 
 ## Third order habitat selection
 ## (relocation within home range)
