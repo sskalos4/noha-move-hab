@@ -1,7 +1,8 @@
 # extract NLCD 2011 raster values to points and MCP polygons
 
 library(FedData)
-
+library(adehabitatHS)
+library(raster)
 #37 2018 AK
 fowl37.18_poly <- polygon_from_extent(raster::extent(498251, 500034, 7664495, 7665673), proj4string='+proj=utm +datum=NAD83 +zone=4')
 
@@ -401,11 +402,15 @@ nlcd_mal_new <- projectRaster(mal_nlcd, crs = newproj, method = "ngb" )
 proj4string(drib65.df)
 proj4string(nlcd_mal_new)
 
+plot(mal_nlcd)
+zoom(mal_nlcd)
 plot(nlcd_mal_new)
 plot(drib65.df, add=T)
-
+install.packages(zoom)
+install.packages("zoom")
+library(zoom)
 #bring in MCP for DRIB 65
-
+zoom(nlcd_mal_new)
 drib65.mcp <-mcp(drib65.df, percent = 100, unin = "m",unout = "km2")
 proj4string(drib65.mcp)
 
