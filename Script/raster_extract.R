@@ -450,7 +450,7 @@ plot(clip65, add =T)
 plot(drib65.df, add=T, pch = 16)
 
 #bring in points for FOWL 22 -  Malheur NWR  Zone 11
-
+library(raster)
 drib22.df <- as.data.frame(read.csv(file = "~/Desktop/R_Forever/Dissertation/noha-move-hab/Data/FOWL 22.csv"))
 
 coordinates(drib22.df) <- c("x", "y")
@@ -468,7 +468,7 @@ plot(nlcd_mal_new)
 plot(drib22.df, add=T)
 
 #bring in MCP for DRIB 22
-
+library(adehabitatHR)
 drib22.mcp <-mcp(drib22.df, percent = 100, unin = "m",unout = "km2")
 proj4string(drib22.mcp)
 
@@ -501,7 +501,7 @@ write.csv(final_22, file = "nlcd.22.points.csv")
 ## raster values to mcp
 clip22 <- mask(nlcd_mal_new, drib22.mcp)
 plot(clip22)
-str(clip22)
+#str(clip22)
 med.clip <- values(clip22)
 final.clip <- med.clip[!is.na(med.clip)]
 final.clip
